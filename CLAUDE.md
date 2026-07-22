@@ -64,12 +64,15 @@ Flag conflicts; do not silently choose.
 ## Token-efficient workflow
 
 1. Read only the documents and files relevant to the current slice. Do not repeatedly summarize unchanged documents.
-2. Before coding, give a brief plan: scope, files likely to change, acceptance checks, and any blocker.
+2. Before coding, write a brief plan to `CURRENT-SLICE.md`: scope, files likely to change, acceptance checks, and any blocker. Summarize it in chat.
 3. Wait for approval when the user requests a plan-first workflow or when a major architecture/UX decision is required.
 4. Implement one requested slice or bug only.
 5. Make focused edits. Do not rewrite whole files or refactor unrelated code.
-6. Run the smallest useful verification.
-7. Stop and report: what changed, how the user can test it, deviations or unresolved issues.
+6. Run the smallest useful verification, starting and stopping any temporary preview server yourself (`.claude/launch.json` runs the stable preview on `localhost:8891`).
+7. Replace the plan in `CURRENT-SLICE.md` with the final implementation report and a manual test checklist, and update `CHANGELOG.md` / `docs/Architecture.md` where appropriate.
+8. Stop and report: what changed, how the user can test it, deviations or unresolved issues.
+
+Proceed without asking on routine implementation, automated verification, documentation updates, and preview-server startup/cleanup. Stop and ask only for a genuine product decision, a risky or hard-to-reverse action, or the user's manual acceptance test — do not assume that test has passed until the user says so.
 
 Keep responses concise. Do not paste complete files unless asked. Refer to filenames and summarize changes.
 

@@ -133,6 +133,32 @@ button {
   flex: 1;
 }
 
+.stacked-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.tertiary-action {
+  background: none;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  font-weight: 400;
+  font-size: 0.95rem;
+  min-height: 44px;
+}
+
+.discard-panel {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.discard-panel .step-actions {
+  margin-top: 12px;
+}
+
 .error {
   color: var(--color-danger);
 }

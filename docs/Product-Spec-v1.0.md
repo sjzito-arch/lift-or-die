@@ -221,7 +221,7 @@ Persist locally in IndexedDB:
 Recovery rules:
 
 - Save after every meaningful action.
-- On launch, if an unfinished session exists, show **Resume Workout**, **Save as incomplete**, and **Discard Workout**; Resume is primary and the other choices are secondary.
+- On launch, if an unfinished session exists, show **Resume Workout** as primary. Offer **Save as incomplete** as a secondary choice only once at least one set has been recorded in the session; a session with zero recorded sets offers **Resume Workout** and a guarded **Discard Workout** only.
 - Discard requires confirmation and explains what will be removed. Completed history and exercise settings are never affected.
 - If the app closed during rest, restore using the saved timer end time.
 - If it closed on exercise-complete or workout-summary screens, restore that state without duplicating completion.

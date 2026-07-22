@@ -50,6 +50,15 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Reason: Squat is trained in every session; its working weight and progression must continue across every squat session regardless of A/B alternation.
 - Tradeoff: Exercise-to-workout is a many-to-many reference rather than one config per workout slot; setup and progression logic must resolve Squat's single record from either workout context.
 
+## ADR-007 — Workout sessions snapshot exercise data at creation
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: When a `WorkoutSession` is created (Lift tapped), each exercise's current weight, resolved bar weight, resolved rest seconds, and target sets/reps are copied into the session's `exerciseResults` at that instant. Later slices read/write only this snapshot during the active workout, never live `ExerciseConfig` records.
+- Reason: Spec §10 requires that settings changes mid-workout affect future workouts only, not an in-progress one. Snapshotting once at creation, inside a single validated read-then-write step before the atomic `put`, is simpler than reconciling live config drift mid-session.
+- Alternatives considered: Re-reading `ExerciseConfig` live during the workout and only freezing values at completion; rejected because it would let a mid-workout settings edit silently change an active session's targets, which the spec forbids.
+- Tradeoffs: If an `ExerciseConfig` is corrected after a session starts, the active session will not see the fix until the next workout. Per-side weight math is intentionally left out of the snapshot (deferred to Slice 5) — only the raw inputs it will need are captured.
+
 ## New entry template
 
 ```markdown

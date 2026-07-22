@@ -1,5 +1,16 @@
 # Changelog
 
+## Slice 2 — Daily Vote and workout creation/resume — 2026-07-22
+
+- Added the **Lift or Die?** daily ritual: Home's Start Workout leads to Lift/Not today; Not today exits with kind copy and changes no state.
+- Added a small, secondary **Change Workout** control on Home to override the proposed A/B workout for the workout being started only; confirmed it never writes `firstWorkoutChoice` or alternation state.
+- Lift snapshots the chosen template's exercises (weight, bar weight, rest seconds, sets/reps) into a new active `workoutSessions` record atomically, validating first so a missing setting blocks creation with a plain-language message instead of a partial session (ADR-007).
+- Added a minimal active-workout placeholder screen (snapshot display + guarded Discard) that Slice 3 will replace with the real one-exercise-at-a-time flow.
+- Home now shows **Resume Workout** as primary whenever an active session exists, skipping the Daily Vote step; **Discard Workout** is available both from Home and from the active-workout screen, gated behind an inline confirm/cancel (no modal, no browser `confirm()`).
+- Clarified `docs/Product-Spec-v1.0.md` §12: **Save as incomplete** is offered only once at least one set is recorded; a zero-set session offers Resume or guarded Discard only. Slice 2 does not implement Save as incomplete for this reason — it lands with Slice 3's set recording.
+- Verified: no-session Home → vote → Not today (no session written); Lift creates exactly one session even under a rapid double-tap; reload mid-session shows Resume (no vote, no Change Workout control); Cancel preserves the session, Confirm Discard removes only the session (settings/history untouched) from both entry points; an incomplete exercise config blocks creation with a plain-language error and no partial session.
+- Slice 2 passes Definition of Done.
+
 ## Slice 1 — App shell, setup, data schema, persistence — 2026-07-22
 
 - Implemented the app shell and a versioned IndexedDB schema (`appSettings`, `exerciseConfigs`, `workoutTemplates`, `workoutSessions`, `storedWorkouts`).

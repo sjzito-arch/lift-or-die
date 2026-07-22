@@ -1,6 +1,8 @@
 import { getRecord } from './db.js';
 import { renderSetupStep } from './setup.js';
 import { STORES } from './schema.js';
+import { renderDailyVote } from './dailyVote.js';
+import { getActiveSession, renderActiveSession, discardControlMarkup, attachDiscardHandlers } from './session.js';
 
 const root = document.getElementById('app');
 
@@ -14,8 +16,11 @@ async function boot() {
   }
 }
 
-async function renderHome(settings) {
-  const template = await getRecord(STORES.workoutTemplates.name, settings.firstWorkoutChoice);
+async function renderHome(settings, overrideType) {
+  const activeSession = await getActiveSession();
+  const proposedType = overrideType ?? settings.firstWorkoutChoice;
+  const otherType = proposedType === 'A' ? 'B' : 'A';
+  const template = await getRecord(STORES.workoutTemplates.name, proposedType);
   const exercises = await Promise.all(
     (template?.exerciseIds ?? []).map((id) => getRecord(STORES.exerciseConfigs.name, id))
   );
@@ -23,7 +28,7 @@ async function renderHome(settings) {
   root.innerHTML = `
     <main class="home">
       <h1>Lift or Die</h1>
-      <p class="muted">Next workout: ${settings.firstWorkoutChoice}</p>
+      <p class="muted">Next workout: ${proposedType}</p>
       <ul class="exercise-list">
         ${exercises
           .map(
@@ -36,8 +41,39 @@ async function renderHome(settings) {
           .join('')}
       </ul>
       <p class="muted">Program start: ${settings.programStartDate ?? 'not set'}</p>
+      <div class="stacked-actions">
+        ${
+          activeSession
+            ? `<button id="resume-btn" class="primary-action">Resume Workout</button>${discardControlMarkup()}`
+            : `<button id="start-btn" class="primary-action">Start Workout</button>
+               <button id="change-workout-btn" class="tertiary-action">Change Workout (use ${otherType})</button>`
+        }
+      </div>
     </main>
   `;
+
+  if (activeSession) {
+    document.getElementById('resume-btn').addEventListener('click', () => {
+      renderActiveSession(root, activeSession, settings, {
+        onDiscarded: () => renderHome(settings),
+      });
+    });
+    attachDiscardHandlers(activeSession.id, () => renderHome(settings));
+  } else {
+    document.getElementById('start-btn').addEventListener('click', () => {
+      renderDailyVote(root, proposedType, settings, {
+        onLift: (session) => {
+          renderActiveSession(root, session, settings, {
+            onDiscarded: () => renderHome(settings),
+          });
+        },
+        onNotToday: () => renderHome(settings),
+      });
+    });
+    document.getElementById('change-workout-btn').addEventListener('click', () => {
+      renderHome(settings, otherType);
+    });
+  }
 }
 
 boot();
