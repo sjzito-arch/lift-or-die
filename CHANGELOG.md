@@ -23,6 +23,8 @@
 - Reworded the per-side load-difference text from signed numbers ("-10 lb per side") to plain language: **"Add 10 lb per side."** / **"Remove 10 lb per side."** / "No change per side." (unchanged).
 - Updated `docs/Product-Spec-v1.0.md` §8 to reflect the approved overtime behavior, replacing the old "show Ready for Set N rather than a negative timer" line.
 - Re-verified end-to-end: live overtime counting, chime-once (no repeat), Set Done/Partial/Undo all functioning from the overtime screen, reload recovery at multiple overtime durations, the three diff-text cases (add/remove/no-change), and a full Slice 1–3 regression pass — no console errors.
+
+**Bug fix (same day):** Set Done/Partial succeeding from the overtime screen called the dispatcher's `rerender` without first stopping that screen's own countdown `setInterval`, leaving a detached timer loop running in the background after every set recorded from overtime. Fixed by having `enterOvertimeState` wrap the shared `rerender` with `stopTicking()` first. Verified by instrumenting `setInterval`/`clearInterval` to count live intervals: exactly one active interval at all times, confirmed across Set Done and Partial success from overtime, Undo, Skip Rest, +30 sec, and End Workout (both Save as Incomplete and Discard) — none leave an orphaned interval.
 - Milestone (with follow-up) passes Definition of Done.
 
 ## Slice 3 — Active exercise, Set Done, partial set, undo — 2026-07-22

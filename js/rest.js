@@ -78,7 +78,13 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
     timerEl.classList.add('rest-timer--expired');
     overtimeTextEl.hidden = false;
     setRecordingBlock.hidden = false;
-    attachSetRecordingHandlers(session, index, exercise, rerender);
+    // Set Done/Partial succeeding here must stop this screen's own countdown
+    // before handing off to the dispatcher — otherwise this interval keeps
+    // running detached in the background after the new screen renders.
+    attachSetRecordingHandlers(session, index, exercise, (updated) => {
+      stopTicking();
+      rerender(updated);
+    });
   }
 
   if (initiallyExpired) {
