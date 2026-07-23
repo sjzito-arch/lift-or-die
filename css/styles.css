@@ -191,9 +191,20 @@ button {
   font-size: 4rem;
   font-weight: 700;
   text-align: center;
-  margin: 20px 0;
+  margin: 20px 0 4px;
   color: var(--color-rest);
   font-variant-numeric: tabular-nums;
+}
+
+.rest-timer--expired {
+  color: var(--color-success);
+}
+
+.rest-overtime-text {
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-success);
+  margin: 0 0 16px;
 }
 
 .exercise-transition h2 {

@@ -150,9 +150,10 @@ After every non-final set:
 - Continue showing the current exercise and both the completed and upcoming set numbers.
 - Provide **+30 sec**, **Skip Rest**, and **Undo Last Set**.
 - Show one rest card below the timer with **Next Tip**.
-- When zero is reached while visible, use a restrained chime/vibration where browser permissions and iOS behavior allow.
-- If backgrounded or suspended, calculate correct elapsed time on return. V1 does not promise a background alarm.
-- If the user returns after the timer expired, show “Ready for Set N” rather than a negative timer.
+- When zero is reached while visible, play a restrained chime/vibration exactly once, where browser permissions and iOS behavior allow.
+- Reaching zero does not auto-advance the workout and does not require a "Continue" tap. The rest screen stays visible, switches to an expired/ready visual state (e.g. green), and keeps counting elapsed time past zero as overtime, shown as a negative timer with plain text such as "Rest finished — 12 seconds over." The lifter starts the next set in their own time; the app never forces it.
+- Once expired, **Set Done** and the partial-set action for the upcoming set are exposed directly on this same screen, so the lifter can record the set the moment it's done without a separate screen. **Undo Last Set** and the guarded **End Workout** action remain available throughout, both before and after expiry.
+- If backgrounded or suspended, calculate the correct elapsed time on return, including correctly recomputed overtime if the countdown expired while away. V1 does not promise a background alarm.
 
 After the final set, never start a rest timer.
 

@@ -2,18 +2,28 @@
 
 ## Slices 4 + 5 (milestone) — Rest timer, interruption recovery, exercise transitions, per-side calculations — 2026-07-22
 
-- Added the rest screen (spec §8): an absolute-timestamp countdown after every non-final set (never after an exercise's final set), **+30 sec**, **Skip Rest**, **Undo Last Set**, and a restrained chime/vibration when it reaches zero. The screen auto-advances to the next set the instant the countdown ends.
-- Countdown correctness verified under real conditions: backgrounding/reloading mid-rest recalculates the correct remaining time from the stored end timestamp; returning after the timer already expired shows "Ready for Set N," never a negative timer; a live countdown-to-zero was observed to auto-advance without manual action.
+- Added the rest screen (spec §8): an absolute-timestamp countdown after every non-final set (never after an exercise's final set), **+30 sec**, **Skip Rest**, and **Undo Last Set**.
 - Added per-side weight calculations (spec §7 formula: `max(0, (target - bar) / 2)`), including the "bar only" message when target is below bar weight, now shown on every active-exercise, rest, and transition screen (`js/loadCalculations.js`).
-- Added the exercise transition screen (spec §9): a plain reps/weight summary of the just-finished exercise, the next exercise's target weight and per-side load, the per-side difference framed as add/remove/no-change, and a large **Next Exercise** button that advances to the next exercise.
+- Added the exercise transition screen (spec §9): a plain reps/weight summary of the just-finished exercise, the next exercise's target weight and per-side load, the per-side difference, and a large button to start the next exercise.
 - The active-workout screen is now dispatched purely from session data (`js/workoutScreen.js`) — resting, ready-for-set, exercise-complete, or all-exercises-done — never from a separately stored flag, so a reload at any stage restores the exact right screen without any risk of duplicating a transition (ADR-009).
 - Undo is available from the exercise-complete and all-exercises-done screens too, not just the ready screen, so a mistaken final set can still be corrected before moving on.
 - After the last exercise's final set, the app shows the same completion summary plus a plain note that workout completion and progression arrive in Slice 6, alongside the existing Save as Incomplete / Discard choices — no completion or progression logic invented ahead of that slice (ADR-011).
 - Every session-mutating function now re-fetches the session fresh from IndexedDB before writing, closing a staleness risk introduced by the rest screen's long-lived render (ADR-010).
-- Set Done, partial confirmation, Undo, +30 sec, Skip Rest, and Next Exercise all show a plain-language inline error and re-enable on a simulated storage failure, verified directly for each new action; the atomic Save as Incomplete write and existing rapid-tap/undo guards were re-verified against the full 3-exercise flow.
+- Set Done, partial confirmation, Undo, +30 sec, Skip Rest, and the next-exercise action all show a plain-language inline error and re-enable on a simulated storage failure; the atomic Save as Incomplete write and existing rapid-tap/undo guards were re-verified against the full 3-exercise flow.
 - Verified end-to-end: a full 15-set, 3-exercise workout recorded correct per-side weights and diffs throughout, reached the all-exercises-done screen, and saved via Save as Incomplete with all three exercises marked successful and a correct `durationSeconds`. Slice 1–3 flows (Daily Vote, Change Workout, rapid-tap guard, Discard) re-verified with no regressions.
 - Deferred: rest cards/tips (Slice 8, not yet started) — the rest screen intentionally has no card below the timer. Workout completion, progression suggestions, lifetime vote, and A/B alternation remain Slice 6.
-- Milestone passes Definition of Done.
+
+**Acceptance-test follow-up (same day):**
+
+- **Rest no longer auto-advances at zero.** The rest screen now stays visible past the countdown, switches to a green "expired" state, chimes/vibrates exactly once, and keeps counting elapsed time as overtime — a negative timer plus plain text ("Rest finished — 12 seconds over."). The lifter starts the next set in their own time; nothing is force-started. This replaces the original auto-advance-and-skip behavior this milestone shipped with initially.
+- **Set Done and Partial / Failed Set are now exposed directly on the expired rest screen**, so the next set can be recorded the moment it's done without a separate screen. Undo Last Set and End Workout remain available throughout (before and after expiry). The Set Done/Partial markup and handlers (including the rapid-tap guard) were extracted into a shared `js/setRecording.js` used by both the ready screen and the rest screen, so the two behave identically; the rapid-tap guard itself moved into `js/rapidTapGuard.js` so it's shared across both screens rather than scoped to one.
+- **Background/reload recovery recomputes overtime correctly** — verified by expiring a rest in the background and reloading; the shown "N seconds over" matches real elapsed time, not the time at last render.
+- **+30 sec now fully re-renders** rather than adjusting an in-memory timestamp in place, so it correctly flips the screen back from the overtime state to a normal countdown when the extension lands in the future — verified directly.
+- Renamed the exercise-transition button to **"Start [next exercise name]"** (e.g. "Start Bench Press").
+- Reworded the per-side load-difference text from signed numbers ("-10 lb per side") to plain language: **"Add 10 lb per side."** / **"Remove 10 lb per side."** / "No change per side." (unchanged).
+- Updated `docs/Product-Spec-v1.0.md` §8 to reflect the approved overtime behavior, replacing the old "show Ready for Set N rather than a negative timer" line.
+- Re-verified end-to-end: live overtime counting, chime-once (no repeat), Set Done/Partial/Undo all functioning from the overtime screen, reload recovery at multiple overtime durations, the three diff-text cases (add/remove/no-change), and a full Slice 1–3 regression pass — no console errors.
+- Milestone (with follow-up) passes Definition of Done.
 
 ## Slice 3 — Active exercise, Set Done, partial set, undo — 2026-07-22
 

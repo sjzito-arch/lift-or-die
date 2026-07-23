@@ -1,24 +1,38 @@
 import { addRestTime, skipRest, undoLastSet, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
 import { formatPerSideText } from './loadCalculations.js';
+import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.js';
 import { playChime } from './audio.js';
 
 function formatCountdown(msRemaining) {
-  const totalSeconds = Math.max(0, Math.round(msRemaining / 1000));
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  const totalSeconds = Math.round(msRemaining / 1000);
+  const sign = totalSeconds < 0 ? '-' : '';
+  const abs = Math.abs(totalSeconds);
+  const m = Math.floor(abs / 60);
+  const s = abs % 60;
+  return `${sign}${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatOvertimeText(msRemaining) {
+  const overtimeSeconds = Math.max(0, Math.round(-msRemaining / 1000));
+  const unit = overtimeSeconds === 1 ? 'second' : 'seconds';
+  return `Rest finished — ${overtimeSeconds} ${unit} over.`;
 }
 
 // Rest state (spec §8). The countdown is driven entirely by an absolute
 // `restEndsAt` timestamp, not by decrementing a counter, so backgrounding or
 // suspending the tab can never drift the displayed time — each tick just
-// recomputes from the clock.
+// recomputes from the clock. Reaching zero does not auto-advance or require
+// a "Continue" tap: the screen stays up, flips to an expired/overtime look,
+// chimes once, and keeps counting elapsed time as overtime. Once expired,
+// Set Done / Partial are exposed right here so the lifter can record the
+// next set the moment it's done, without a separate transition.
 export function renderRestScreen(root, session, settings, { onSessionEnded, rerender }) {
   const index = session.activeExerciseIndex ?? 0;
   const exercise = session.exerciseResults[index];
-  let restEndsAtMs = new Date(exercise.restEndsAt).getTime();
+  const restEndsAtMs = new Date(exercise.restEndsAt).getTime();
   const setsRecorded = exercise.setResults.length;
   const nextSetNumber = setsRecorded + 1;
+  const initiallyExpired = restEndsAtMs - Date.now() <= 0;
 
   root.innerHTML = `
     <main class="rest-screen">
@@ -27,8 +41,14 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
       <p class="target-weight">${exercise.targetWeight} ${settings.units}</p>
       <p class="muted">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
       <p class="rest-timer" id="rest-timer">${formatCountdown(restEndsAtMs - Date.now())}</p>
+      <p class="rest-overtime-text" id="rest-overtime-text" hidden></p>
       <p class="set-status">Set ${setsRecorded} done. Ready for Set ${nextSetNumber} of ${exercise.targetSets}.</p>
       <p class="error" id="rest-error" hidden></p>
+
+      <div id="set-recording-block" hidden>
+        ${setRecordingMarkup(exercise)}
+      </div>
+
       <div class="stacked-actions">
         <button id="add-rest-btn" class="secondary-action">+30 sec</button>
         <button id="skip-rest-btn" class="secondary-action">Skip Rest</button>
@@ -44,26 +64,40 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
   `;
 
   const timerEl = document.getElementById('rest-timer');
-  let settled = false;
+  const overtimeTextEl = document.getElementById('rest-overtime-text');
+  const setRecordingBlock = document.getElementById('set-recording-block');
+
+  // Don't chime for a rest that already expired while backgrounded/reloaded —
+  // spec calls for the chime only "while visible." A live crossover from
+  // counting-down to overtime during this render always chimes exactly once.
+  let hasChimed = initiallyExpired;
+  let isExpired = false;
+
+  function enterOvertimeState() {
+    isExpired = true;
+    timerEl.classList.add('rest-timer--expired');
+    overtimeTextEl.hidden = false;
+    setRecordingBlock.hidden = false;
+    attachSetRecordingHandlers(session, index, exercise, rerender);
+  }
+
+  if (initiallyExpired) {
+    enterOvertimeState();
+  }
 
   const intervalId = setInterval(() => {
     const remaining = restEndsAtMs - Date.now();
-    if (remaining <= 0) {
-      timerEl.textContent = formatCountdown(0);
-      if (!settled) {
-        settled = true;
-        playChime();
-        clearInterval(intervalId);
-        skipRest(session, index)
-          .then((updated) => rerender(updated))
-          .catch(() => {
-            // Transient failure right at expiry: leave the countdown at
-            // 0:00; the next manual action (Skip/Undo/Set Done) will retry.
-          });
-      }
-      return;
-    }
     timerEl.textContent = formatCountdown(remaining);
+    if (remaining <= 0) {
+      overtimeTextEl.textContent = formatOvertimeText(remaining);
+      if (!isExpired) {
+        enterOvertimeState();
+      }
+      if (!hasChimed) {
+        hasChimed = true;
+        playChime();
+      }
+    }
   }, 250);
 
   function stopTicking() {
@@ -75,9 +109,9 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
     const errEl = document.getElementById('rest-error');
     errEl.hidden = true;
     try {
-      await addRestTime(session, index, 30);
-      restEndsAtMs += 30000;
-      e.target.disabled = false;
+      const updated = await addRestTime(session, index, 30);
+      stopTicking();
+      rerender(updated);
     } catch (err) {
       e.target.disabled = false;
       errEl.textContent = 'Could not add rest time. Check your storage and try again.';

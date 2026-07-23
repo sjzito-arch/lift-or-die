@@ -22,6 +22,6 @@ export function computeLoadDifferenceText(currentTargetWeight, currentBarWeight,
   const next = computePerSideWeight(nextTargetWeight, nextBarWeight).perSide;
   const delta = next - current;
   if (delta === 0) return 'No change per side.';
-  const sign = delta > 0 ? '+' : '-';
-  return `${sign}${Math.abs(delta)} ${units} per side.`;
+  const amount = Math.abs(delta);
+  return delta > 0 ? `Add ${amount} ${units} per side.` : `Remove ${amount} ${units} per side.`;
 }

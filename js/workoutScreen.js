@@ -12,7 +12,10 @@ export function renderWorkoutScreen(root, session, settings, callbacks) {
   const exercise = session.exerciseResults[index];
   const isLastExercise = index === session.exerciseResults.length - 1;
   const isExerciseComplete = exercise.setResults.length >= exercise.targetSets;
-  const isResting = !isExerciseComplete && exercise.restEndsAt && new Date(exercise.restEndsAt).getTime() > Date.now();
+  // Resting covers both the counting-down and post-expiry overtime states —
+  // rest.js itself decides which to show. Only a cleared restEndsAt (via
+  // Skip Rest, Undo, or an exercise-ending recordSet) exits this screen.
+  const isResting = !isExerciseComplete && exercise.restEndsAt != null;
 
   const rerender = (updatedSession) => renderWorkoutScreen(root, updatedSession, settings, callbacks);
   const screenCallbacks = { ...callbacks, rerender };

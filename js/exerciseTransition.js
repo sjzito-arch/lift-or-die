@@ -39,7 +39,7 @@ function attachUndoHandler(session, index, rerender) {
 
 // Exercise transition (spec §9): summary of the just-finished exercise, the
 // next exercise's target/per-side load, and the per-side difference between
-// them (add/remove/no change), with a large Next Exercise button.
+// them (add/remove/no change), with a large "Start [next exercise]" button.
 export function renderExerciseCompleteScreen(root, session, settings, { onSessionEnded, rerender }) {
   const index = session.activeExerciseIndex ?? 0;
   const exercise = session.exerciseResults[index];
@@ -67,7 +67,7 @@ export function renderExerciseCompleteScreen(root, session, settings, { onSessio
       <p class="error" id="next-error" hidden></p>
 
       <div class="stacked-actions">
-        <button id="next-exercise-btn" class="primary-action">Next Exercise</button>
+        <button id="next-exercise-btn" class="primary-action">Start ${nextExercise.name}</button>
       </div>
 
       <div class="stacked-actions">
