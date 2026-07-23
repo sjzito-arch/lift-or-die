@@ -61,18 +61,21 @@ The app sounds like one calm, dependable training partner: direct, encouraging, 
 
 Flag conflicts; do not silently choose.
 
-## Token-efficient workflow
+## Token-efficient workflow (milestone-based autonomy)
 
-1. Read only the documents and files relevant to the current slice. Do not repeatedly summarize unchanged documents.
-2. Before coding, write a brief plan to `CURRENT-SLICE.md`: scope, files likely to change, acceptance checks, and any blocker. Summarize it in chat.
-3. Wait for approval when the user requests a plan-first workflow or when a major architecture/UX decision is required.
-4. Implement one requested slice or bug only.
+1. Read only the documents and files relevant to the current slice or milestone. Do not repeatedly summarize unchanged documents.
+2. Before coding, write a brief plan to `CURRENT-SLICE.md`: scope, files likely to change, acceptance checks, and any blocker.
+3. For routine, already-assigned work — a slice, a bug fix, or a milestone the user has explicitly requested — proceed straight through plan → implement → verify → document → commit without pausing for approval between steps. Do not relay the plan or intermediate reports to the user for permission; `CURRENT-SLICE.md` is the record, not a request.
+4. Implement only the assigned slice(s) or milestone. No unrelated scope.
 5. Make focused edits. Do not rewrite whole files or refactor unrelated code.
-6. Run the smallest useful verification, starting and stopping any temporary preview server yourself (`.claude/launch.json` runs the stable preview on `localhost:8891`).
-7. Replace the plan in `CURRENT-SLICE.md` with the final implementation report and a manual test checklist, and update `CHANGELOG.md` / `docs/Architecture.md` where appropriate.
-8. Stop and report: what changed, how the user can test it, deviations or unresolved issues.
+6. Verify using the existing `.claude/launch.json` stable preview (`localhost:8891`). Reuse the running server rather than restarting it; group related checks together instead of interrupting for each one, to keep permission prompts to a minimum.
+7. Keep `CURRENT-SLICE.md` current as work progresses, then replace the plan with the final implementation report and a manual test checklist; update `CHANGELOG.md` / `docs/Architecture.md` where appropriate.
+8. Commit the verified, documented work once checks pass — do not wait for a separate go-ahead on routine or milestone work.
+9. Stop and report: what changed, how the user can test it, deviations or unresolved issues.
 
-Proceed without asking on routine implementation, automated verification, documentation updates, and preview-server startup/cleanup. Stop and ask only for a genuine product decision, a risky or hard-to-reverse action, or the user's manual acceptance test — do not assume that test has passed until the user says so.
+Stop and ask only for: a genuine product decision, a destructive or hard-to-reverse action, an unresolved contradiction between the spec/docs/code, or the user's manual acceptance test — do not assume that test has passed until the user says so. Wait for approval before implementing when the user explicitly requests a plan-first workflow.
+
+Do not install tools or dependencies, use network access, or modify files outside this project directory without asking first.
 
 Keep responses concise. Do not paste complete files unless asked. Refer to filenames and summarize changes.
 
