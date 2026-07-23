@@ -1,6 +1,7 @@
 import { renderActiveExercise } from './activeExercise.js';
 import { renderRestScreen } from './rest.js';
-import { renderExerciseCompleteScreen, renderAllExercisesDoneScreen } from './exerciseTransition.js';
+import { renderExerciseCompleteScreen } from './exerciseTransition.js';
+import { renderWorkoutCompletionScreen } from './workoutCompletion.js';
 
 // Which of the four active-workout screens to show is always derived from
 // the session's own data (current exercise's recorded sets vs its target,
@@ -31,7 +32,7 @@ export function renderWorkoutScreen(root, session, settings, callbacks) {
   }
 
   if (isLastExercise) {
-    renderAllExercisesDoneScreen(root, session, settings, screenCallbacks);
+    renderWorkoutCompletionScreen(root, session, settings, screenCallbacks);
   } else {
     renderExerciseCompleteScreen(root, session, settings, screenCallbacks);
   }

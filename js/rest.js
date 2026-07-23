@@ -12,20 +12,15 @@ function formatCountdown(msRemaining) {
   return `${sign}${m}:${String(s).padStart(2, '0')}`;
 }
 
-function formatOvertimeText(msRemaining) {
-  const overtimeSeconds = Math.max(0, Math.round(-msRemaining / 1000));
-  const unit = overtimeSeconds === 1 ? 'second' : 'seconds';
-  return `Rest finished — ${overtimeSeconds} ${unit} over.`;
-}
-
 // Rest state (spec §8). The countdown is driven entirely by an absolute
 // `restEndsAt` timestamp, not by decrementing a counter, so backgrounding or
 // suspending the tab can never drift the displayed time — each tick just
 // recomputes from the clock. Reaching zero does not auto-advance or require
-// a "Continue" tap: the screen stays up, flips to an expired/overtime look,
-// chimes once, and keeps counting elapsed time as overtime. Once expired,
-// Set Done / Partial are exposed right here so the lifter can record the
-// next set the moment it's done, without a separate transition.
+// a "Continue" tap: the screen stays up, flips to an expired/ready look
+// ("Rest finished."), chimes once, and the timer keeps counting past zero
+// as a negative number. +30 sec/Skip Rest no longer apply once expired, so
+// they're hidden; Set Done / Partial are exposed right here instead, so the
+// lifter can record the next set the moment it's done.
 export function renderRestScreen(root, session, settings, { onSessionEnded, rerender }) {
   const index = session.activeExerciseIndex ?? 0;
   const exercise = session.exerciseResults[index];
@@ -49,9 +44,11 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
         ${setRecordingMarkup(exercise)}
       </div>
 
-      <div class="stacked-actions">
+      <div class="stacked-actions" id="pre-expiry-actions">
         <button id="add-rest-btn" class="secondary-action">+30 sec</button>
         <button id="skip-rest-btn" class="secondary-action">Skip Rest</button>
+      </div>
+      <div class="stacked-actions">
         <button id="undo-btn" class="tertiary-action">Undo Last Set</button>
       </div>
       <div class="stacked-actions">
@@ -66,6 +63,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
   const timerEl = document.getElementById('rest-timer');
   const overtimeTextEl = document.getElementById('rest-overtime-text');
   const setRecordingBlock = document.getElementById('set-recording-block');
+  const preExpiryActions = document.getElementById('pre-expiry-actions');
 
   // Don't chime for a rest that already expired while backgrounded/reloaded —
   // spec calls for the chime only "while visible." A live crossover from
@@ -76,7 +74,9 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
   function enterOvertimeState() {
     isExpired = true;
     timerEl.classList.add('rest-timer--expired');
+    overtimeTextEl.textContent = 'Rest finished.';
     overtimeTextEl.hidden = false;
+    preExpiryActions.hidden = true;
     setRecordingBlock.hidden = false;
     // Set Done/Partial succeeding here must stop this screen's own countdown
     // before handing off to the dispatcher — otherwise this interval keeps
@@ -95,7 +95,6 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
     const remaining = restEndsAtMs - Date.now();
     timerEl.textContent = formatCountdown(remaining);
     if (remaining <= 0) {
-      overtimeTextEl.textContent = formatOvertimeText(remaining);
       if (!isExpired) {
         enterOvertimeState();
       }

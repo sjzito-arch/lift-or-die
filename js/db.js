@@ -86,3 +86,24 @@ export async function putThenDeleteAtomic(putStoreName, putValue, deleteStoreNam
     txn.onerror = () => reject(txn.error);
   });
 }
+
+// General-purpose atomic transaction across multiple stores. `work` is
+// called synchronously with `{ storeName: IDBObjectStore }` for each name in
+// `storeNames` and should only issue put()/delete() calls (no awaiting) —
+// everything it queues commits together or not at all. Used by workout
+// completion, which touches exerciseConfigs (progression), storedWorkouts,
+// workoutSessions, and appSettings (lifetime votes) in one go.
+export async function runAtomicTransaction(storeNames, work) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const txn = db.transaction(storeNames, 'readwrite');
+    const stores = Object.fromEntries(storeNames.map((name) => [name, txn.objectStore(name)]));
+    txn.oncomplete = () => resolve();
+    txn.onerror = () => reject(txn.error);
+    try {
+      work(stores);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}

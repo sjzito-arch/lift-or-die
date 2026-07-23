@@ -89,11 +89,47 @@ This is a living record, not a speculative design essay. Add entries only for de
 ## ADR-011 — All-exercises-done is a placeholder screen, not early workout completion
 
 - Date: 2026-07-22
-- Status: Accepted
+- Status: Superseded by ADR-012 (Slice 6 replaced this placeholder with real completion)
 - Decision: After the last exercise's final set, the app shows the same Exercise Complete summary treatment as any other exercise, plus a plain statement that workout completion and progression arrive later, and the existing Save as Incomplete / Discard choices from Slice 2/3 — not a new "complete workout" action.
 - Reason: Spec §9 says the last exercise should "proceed to workout completion," but progression suggestions, the completion summary, lifetime vote, and A/B alternation are explicitly Slice 6 (§21). Reusing Save as Incomplete here (already spec-correct: "preserving all recorded sets without applying progression or counting a Lift vote") avoids inventing a piece of completion logic ahead of the slice that owns it, and avoids building something Slice 6 would then have to reconcile or replace.
 - Alternatives considered: Building a minimal completion flow now (weight suggestions, vote increment) as part of this milestone; rejected as scope creep into Slice 6's explicitly separate acceptance behavior, and because progression math touches `ExerciseConfig` in a way this milestone was not asked to implement.
 - Tradeoffs: Finishing a full workout today saves it as "incomplete" rather than "completed" — expected and temporary until Slice 6 lands; noted as a known limitation in `CURRENT-SLICE.md` and the changelog.
+
+## ADR-012 — Real workout completion replaces the all-exercises-done placeholder
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: The last exercise's completion now routes to a real review screen (`js/workoutCompletion.js`): every exercise's result, an editable suggested next weight, duration, and total volume, with a **Complete Workout** action that commits progression. Save as Incomplete / Discard remain available on this screen too, unchanged from ADR-011's placeholder.
+- Reason: This is the slice the spec assigns completion/progression to (§21 Slice 6); ADR-011 was an explicit, documented placeholder pending exactly this work.
+- Alternatives considered: none new — this is the planned continuation of ADR-011.
+- Tradeoffs: none beyond what ADR-011 already accepted.
+
+## ADR-013 — Idempotent workout completion without a separate transaction id
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: `completeWorkout` writes every affected exercise's new `currentWeight`, the `StoredWorkout` record (`status: 'completed'`, id reused from the session), the session's deletion, and the lifetime-vote increment in one atomic transaction (`db.js`'s new `runAtomicTransaction`, generalized from ADR-008's two-store helper). No separate transaction id is written or checked.
+- Reason: Spec §10/§11 require progression to commit exactly once even under a double-tap or a reopened completion screen. Because the whole write is one transaction, it either fully commits — in which case the session row is gone, so a retry's `getFreshSession` throws before touching anything else — or it doesn't commit at all, in which case the session is untouched and a retry starts clean. This reuses the same guard already relied on everywhere else in the session lifecycle, rather than introducing the `completionTransactionId` field the data model sketches out.
+- Alternatives considered: Writing and checking a `completionTransactionId` on the session before starting the real work; rejected as redundant bookkeeping once the atomic transaction plus the existing "session gone → refuse to proceed" guard already provide the same guarantee.
+- Tradeoffs: `completionTransactionId` remains in the `WorkoutSession` shape (data model documents it) but is never populated or read — a harmless unused field rather than a second idempotency mechanism to keep in sync with the first.
+
+## ADR-014 — A/B alternation is derived at read time, not stored
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: Home computes the next proposed workout by looking up the most recently completed `StoredWorkout` and proposing its opposite type, falling back to `firstWorkoutChoice` when none exists yet. No "next proposed workout" field is written during completion.
+- Reason: The alternation rule ("propose the opposite of the last completed workout") is a pure function of already-durable data. Storing a redundant derived field would need to be kept in sync with `storedWorkouts` on every completion and correction, for no benefit — and Slice 7's completed-workout editing must not silently rewrite it, which is trivial if it's never stored (spec §13: "does not silently recalculate... other workout records").
+- Alternatives considered: Writing `settings.nextProposedType` during `completeWorkout`; rejected as one more piece of state that could drift from the `storedWorkouts` history it's derived from, especially once Slice 7 allows editing a completed workout's type/date after the fact.
+- Tradeoffs: Home does one extra `getAllRecords` + filter/sort on every render; negligible at this app's data scale.
+
+## ADR-015 — History is read-only this slice; the humor headline stays minimal
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: `js/history.js` lists and shows workout detail with no edit or delete controls. The post-completion summary shows at most one humorous headline drawn from the three canned examples already given in the spec/style guide, gated on `humorLevel !== 'off'` — not the full rest-card system.
+- Reason: Spec §21 splits "History" (Slice 6) from "completed-workout correction" (Slice 7) — building editing now would be scope creep into the next slice's explicit acceptance behavior. Similarly, §16's rest-card system (categories, no-repeat-in-workout, personalized cards) is Slice 8; the one-line completion headline required by §11 doesn't need that infrastructure, so it's implemented as a tiny standalone picker (`statsCalculations.js`) instead of a preview of Slice 8.
+- Alternatives considered: Adding a lightweight edit action now since the data is already on screen; rejected to keep this slice's scope matched to the spec's own slice boundary, and because editing has its own requirements (Save/Cancel, `updatedAt`, no retroactive recalculation) that deserve their own slice rather than an afterthought here.
+- Tradeoffs: A user correcting a typo'd weight or reps must wait for Slice 7; noted as a known limitation.
 
 ## New entry template
 

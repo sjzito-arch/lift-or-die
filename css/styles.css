@@ -16,6 +16,13 @@
   box-sizing: border-box;
 }
 
+/* The `hidden` attribute must always win over a class's own `display`
+   value (e.g. `.stacked-actions { display: flex }`) — without this, an
+   element that's both `hidden` and flex/grid-styled stays visible. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--color-bg);
@@ -260,4 +267,75 @@ button {
   color: var(--color-text-muted);
   font-size: 0.9rem;
   margin-top: 2px;
+}
+
+.completion-exercise {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.completion-exercise label {
+  margin-top: 10px;
+}
+
+.workout-summary-headline {
+  font-style: italic;
+  color: var(--color-text-muted);
+  margin: 12px 0;
+}
+
+.progress-section {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+
+.progress-section h2 {
+  font-size: 1.05rem;
+  margin: 0 0 10px;
+}
+
+.progress-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-row {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.history-row:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.history-row-main {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
 }

@@ -52,6 +52,7 @@ const DEFAULT_SETTINGS = {
   cardCategoryToggles: Object.fromEntries(CARD_CATEGORIES.map((c) => [c.key, true])),
   globalDefaultRestSeconds: 90,
   globalDefaultBarWeight: 45,
+  lifetimeVotes: 0,
 };
 
 function getFromStore(store, key) {

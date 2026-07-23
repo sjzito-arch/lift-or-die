@@ -1,4 +1,4 @@
-import { getRecord, getAllRecords, putRecord, deleteRecord, putThenDeleteAtomic } from './db.js';
+import { getRecord, getAllRecords, putRecord, deleteRecord, putThenDeleteAtomic, runAtomicTransaction } from './db.js';
 import { STORES } from './schema.js';
 
 export async function getActiveSession() {
@@ -15,6 +15,7 @@ function snapshotExercise(exercise, settings) {
     restSeconds: exercise.restSecondsOverride ?? settings.globalDefaultRestSeconds,
     targetSets: exercise.targetSets,
     targetReps: exercise.targetReps,
+    increment: exercise.increment,
     setResults: [],
     success: null,
     justUndone: false,
@@ -27,9 +28,18 @@ function isValidSnapshot(ex) {
     typeof ex.targetWeight === 'number' && !Number.isNaN(ex.targetWeight) &&
     typeof ex.barWeight === 'number' && !Number.isNaN(ex.barWeight) &&
     typeof ex.restSeconds === 'number' && !Number.isNaN(ex.restSeconds) &&
+    typeof ex.increment === 'number' && !Number.isNaN(ex.increment) && ex.increment >= 0 &&
     Number.isInteger(ex.targetSets) && ex.targetSets > 0 &&
     Number.isInteger(ex.targetReps) && ex.targetReps > 0
   );
+}
+
+// Successful (every set met its rep target) suggests working weight +
+// increment; unsuccessful suggests the same weight (spec §10). `success` is
+// `null` only while sets remain unrecorded, which can't happen once a
+// workout reaches completion review.
+export function computeSuggestedWeight(exercise) {
+  return exercise.success ? exercise.targetWeight + exercise.increment : exercise.targetWeight;
 }
 
 // Snapshots the chosen template's exercises at their current settings into a
@@ -213,6 +223,93 @@ export async function saveIncompleteSession(session) {
     fresh.id
   );
   return storedWorkout;
+}
+
+// Commits progression, the completed-workout record, the lifetime-vote
+// increment, and the session's removal in one atomic transaction (spec
+// §11: "Progression is committed atomically with workout completion").
+// `overridesByExerciseId` holds the (possibly user-edited) next-weight
+// value per exercise from the review screen; falls back to the computed
+// suggestion for any exercise without an override.
+//
+// Idempotent without a separate transaction-id: if the transaction below
+// already committed once, the session is gone, so a retry's
+// `getFreshSession` throws immediately, before anything else runs — no
+// double progression, no double vote. If it never committed (a genuine
+// failure), the session is untouched and a retry is safe from scratch.
+export async function completeWorkout(session, overridesByExerciseId) {
+  const fresh = await getFreshSession(session.id);
+
+  const updatedConfigs = await Promise.all(
+    fresh.exerciseResults.map(async (ex) => {
+      const override = overridesByExerciseId[ex.exerciseId];
+      const nextWeight = typeof override === 'number' && !Number.isNaN(override)
+        ? override
+        : computeSuggestedWeight(ex);
+      const config = await getRecord(STORES.exerciseConfigs.name, ex.exerciseId);
+      return { ...config, currentWeight: nextWeight };
+    })
+  );
+
+  const settings = await getRecord(STORES.appSettings.name, 'settings');
+  const updatedSettings = { ...settings, lifetimeVotes: (settings.lifetimeVotes ?? 0) + 1 };
+
+  const endedAt = new Date().toISOString();
+  const durationSeconds = Math.max(0, Math.round((new Date(endedAt) - new Date(fresh.createdAt)) / 1000));
+  const storedWorkout = {
+    id: fresh.id,
+    type: fresh.type,
+    status: 'completed',
+    startedAt: fresh.createdAt,
+    endedAt,
+    durationSeconds,
+    exerciseResults: fresh.exerciseResults,
+    updatedAt: null,
+  };
+
+  await runAtomicTransaction(
+    [STORES.exerciseConfigs.name, STORES.storedWorkouts.name, STORES.workoutSessions.name, STORES.appSettings.name],
+    (stores) => {
+      for (const config of updatedConfigs) {
+        stores[STORES.exerciseConfigs.name].put(config);
+      }
+      stores[STORES.storedWorkouts.name].put(storedWorkout);
+      stores[STORES.workoutSessions.name].delete(fresh.id);
+      stores[STORES.appSettings.name].put(updatedSettings);
+    }
+  );
+
+  return storedWorkout;
+}
+
+// Shared Undo control used on any screen showing a completed exercise where
+// its last set might still need correcting (exercise transition, the
+// last-exercise view, and the workout completion review) — same handler,
+// same single-level guard (`justUndone`), everywhere it appears.
+export function undoControlMarkup(exercise) {
+  if (exercise.justUndone) return '';
+  return `
+    <button id="undo-btn" class="tertiary-action">Undo Last Set</button>
+    <p class="error" id="undo-error" hidden></p>
+  `;
+}
+
+export function attachUndoHandler(session, index, rerender) {
+  const undoBtn = document.getElementById('undo-btn');
+  if (!undoBtn) return;
+  undoBtn.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    const errEl = document.getElementById('undo-error');
+    errEl.hidden = true;
+    try {
+      const updated = await undoLastSet(session, index);
+      rerender(updated);
+    } catch (err) {
+      e.target.disabled = false;
+      errEl.textContent = 'Could not undo that set. Check your storage and try again.';
+      errEl.hidden = false;
+    }
+  });
 }
 
 function discardOnlyMarkup() {
