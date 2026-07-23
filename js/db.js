@@ -72,3 +72,17 @@ export async function deleteRecord(storeName, key) {
     req.onerror = () => reject(req.error);
   });
 }
+
+// Puts one record and deletes another in a single transaction so the two
+// writes commit together or not at all (e.g. saving a workout to history
+// while removing its active session).
+export async function putThenDeleteAtomic(putStoreName, putValue, deleteStoreName, deleteKey) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const txn = db.transaction([putStoreName, deleteStoreName], 'readwrite');
+    txn.objectStore(putStoreName).put(putValue);
+    txn.objectStore(deleteStoreName).delete(deleteKey);
+    txn.oncomplete = () => resolve();
+    txn.onerror = () => reject(txn.error);
+  });
+}

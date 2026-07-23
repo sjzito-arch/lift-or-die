@@ -1,4 +1,4 @@
-import { getRecord, getAllRecords, putRecord, deleteRecord } from './db.js';
+import { getRecord, getAllRecords, putRecord, deleteRecord, putThenDeleteAtomic } from './db.js';
 import { STORES } from './schema.js';
 
 export async function getActiveSession() {
@@ -17,6 +17,7 @@ function snapshotExercise(exercise, settings) {
     targetReps: exercise.targetReps,
     setResults: [],
     success: null,
+    justUndone: false,
   };
 }
 
@@ -67,7 +68,7 @@ export async function createWorkoutSession(workoutType, settings) {
     createdAt: now,
     updatedAt: now,
     activeExerciseIndex: 0,
-    uiState: 'active-placeholder',
+    uiState: 'active-exercise',
     exerciseResults,
     completionTransactionId: null,
   };
@@ -80,11 +81,95 @@ export async function discardSession(sessionId) {
   await deleteRecord(STORES.workoutSessions.name, sessionId);
 }
 
-export function discardControlMarkup() {
+export function hasAnyRecordedSet(session) {
+  return session.exerciseResults.some((ex) => ex.setResults.length > 0);
+}
+
+// Success is only ever true/false once every prescribed set for the exercise
+// has been recorded; otherwise it's null. Undo relies on this recomputation
+// to fall back to null the moment a set is removed (spec: an exercise can't
+// carry a stale success verdict once it's no longer fully recorded).
+function computeSuccess(exercise) {
+  if (exercise.setResults.length < exercise.targetSets) return null;
+  return exercise.setResults.every((s) => s.reps >= exercise.targetReps);
+}
+
+async function persistExerciseChange(session, exerciseIndex, updatedExercise) {
+  const updatedExerciseResults = session.exerciseResults.map((ex, i) =>
+    i === exerciseIndex ? updatedExercise : ex
+  );
+  const updatedSession = {
+    ...session,
+    exerciseResults: updatedExerciseResults,
+    updatedAt: new Date().toISOString(),
+  };
+  await putRecord(STORES.workoutSessions.name, updatedSession);
+  return updatedSession;
+}
+
+export async function recordSet(session, exerciseIndex, reps) {
+  const exercise = session.exerciseResults[exerciseIndex];
+  if (exercise.setResults.length >= exercise.targetSets) {
+    throw new Error('This exercise already has all its sets recorded.');
+  }
+  const setNumber = exercise.setResults.length + 1;
+  const updatedExercise = {
+    ...exercise,
+    setResults: [...exercise.setResults, { setNumber, reps, completedAt: new Date().toISOString() }],
+    justUndone: false,
+  };
+  updatedExercise.success = computeSuccess(updatedExercise);
+  return persistExerciseChange(session, exerciseIndex, updatedExercise);
+}
+
+// justUndone is persisted on the exercise (not just held in memory) so the
+// single-level undo guard survives a reload: after an undo, another undo
+// stays unavailable until a new set is recorded, even across app reopen.
+export async function undoLastSet(session, exerciseIndex) {
+  const exercise = session.exerciseResults[exerciseIndex];
+  if (exercise.setResults.length === 0) return session;
+  const updatedExercise = {
+    ...exercise,
+    setResults: exercise.setResults.slice(0, -1),
+    justUndone: true,
+  };
+  updatedExercise.success = computeSuccess(updatedExercise);
+  return persistExerciseChange(session, exerciseIndex, updatedExercise);
+}
+
+// Writes the session's real set data to history and removes the active
+// session in one atomic transaction (spec §11: preserve recorded sets,
+// apply no progression, count no Lift vote). Reuses the session's own id as
+// the stored workout's id so a retry after a partial failure just re-puts
+// the same record and re-deletes an already-gone session — both idempotent.
+export async function saveIncompleteSession(session) {
+  const endedAt = new Date().toISOString();
+  const durationSeconds = Math.max(0, Math.round((new Date(endedAt) - new Date(session.createdAt)) / 1000));
+  const storedWorkout = {
+    id: session.id,
+    type: session.type,
+    status: 'incomplete',
+    startedAt: session.createdAt,
+    endedAt,
+    durationSeconds,
+    exerciseResults: session.exerciseResults,
+    updatedAt: null,
+  };
+  await putThenDeleteAtomic(
+    STORES.storedWorkouts.name,
+    storedWorkout,
+    STORES.workoutSessions.name,
+    session.id
+  );
+  return storedWorkout;
+}
+
+function discardOnlyMarkup() {
   return `
     <button id="discard-btn" class="secondary-action">Discard Workout</button>
     <div id="discard-confirm" class="discard-panel" hidden>
       <p>Discard this workout? This removes the unsaved session only. History and settings are unaffected.</p>
+      <p class="error" id="discard-error" hidden></p>
       <div class="step-actions">
         <button id="discard-cancel" class="secondary-action">Cancel</button>
         <button id="discard-confirm-btn" class="primary-action">Confirm Discard</button>
@@ -93,7 +178,7 @@ export function discardControlMarkup() {
   `;
 }
 
-export function attachDiscardHandlers(sessionId, onDiscarded) {
+function attachDiscardOnlyHandlers(sessionId, onDiscarded) {
   document.getElementById('discard-btn').addEventListener('click', () => {
     document.getElementById('discard-confirm').hidden = false;
   });
@@ -102,34 +187,49 @@ export function attachDiscardHandlers(sessionId, onDiscarded) {
   });
   document.getElementById('discard-confirm-btn').addEventListener('click', async (e) => {
     e.target.disabled = true;
-    await discardSession(sessionId);
-    onDiscarded();
+    const errEl = document.getElementById('discard-error');
+    errEl.hidden = true;
+    try {
+      await discardSession(sessionId);
+      onDiscarded();
+    } catch (err) {
+      e.target.disabled = false;
+      errEl.textContent = 'Could not discard this workout. Check your storage and try again.';
+      errEl.hidden = false;
+    }
   });
 }
 
-// Placeholder active-workout screen. Slice 3 replaces the body with the real
-// one-exercise-at-a-time flow; the session shape created here is what it will read.
-export function renderActiveSession(root, session, settings, { onDiscarded }) {
-  root.innerHTML = `
-    <main class="active-session">
-      <h1>Workout ${session.type}</h1>
-      <p class="muted">Warming up. Set tracking starts soon.</p>
-      <ul class="exercise-list">
-        ${session.exerciseResults
-          .map(
-            (ex) => `
-          <li>
-            <span class="exercise-name">${ex.name}</span>
-            <span class="exercise-weight">${ex.targetWeight} ${settings.units} · ${ex.targetSets}×${ex.targetReps}</span>
-          </li>`
-          )
-          .join('')}
-      </ul>
-      <div class="stacked-actions">
-        ${discardControlMarkup()}
-      </div>
-    </main>
+// The End Workout / launch-recovery choices: Save as Incomplete only appears
+// once a set exists anywhere in the session (spec §12); Discard is always
+// available and stays behind its own confirm since it's destructive.
+export function endWorkoutControlMarkup(session) {
+  const showSaveIncomplete = hasAnyRecordedSet(session);
+  return `
+    <div class="end-workout-choices">
+      ${showSaveIncomplete ? `<button id="save-incomplete-btn" class="secondary-action">Save as Incomplete</button>` : ''}
+      <p class="error" id="end-workout-error" hidden></p>
+      ${discardOnlyMarkup()}
+    </div>
   `;
+}
 
-  attachDiscardHandlers(session.id, onDiscarded);
+export function attachEndWorkoutHandlers(session, onEnded) {
+  const saveBtn = document.getElementById('save-incomplete-btn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      const errEl = document.getElementById('end-workout-error');
+      errEl.hidden = true;
+      try {
+        await saveIncompleteSession(session);
+        onEnded();
+      } catch (err) {
+        saveBtn.disabled = false;
+        errEl.textContent = 'Could not save this workout. Check your storage and try again.';
+        errEl.hidden = false;
+      }
+    });
+  }
+  attachDiscardOnlyHandlers(session.id, onEnded);
 }

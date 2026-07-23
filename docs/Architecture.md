@@ -59,6 +59,15 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Re-reading `ExerciseConfig` live during the workout and only freezing values at completion; rejected because it would let a mid-workout settings edit silently change an active session's targets, which the spec forbids.
 - Tradeoffs: If an `ExerciseConfig` is corrected after a session starts, the active session will not see the fix until the next workout. Per-side weight math is intentionally left out of the snapshot (deferred to Slice 5) — only the raw inputs it will need are captured.
 
+## ADR-008 — Atomic save-incomplete write; success recomputed on every set change
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: `saveIncompleteSession` writes the `storedWorkouts` record and deletes the `workoutSessions` record in one IndexedDB transaction (`db.js`'s new `putThenDeleteAtomic`), reusing the session's own id as the stored workout's id. Separately, an exercise's `success` field is always recomputed from its current `setResults` (null until every `targetSets` is present, else a reps-vs-target check) rather than set once and left stale — so Undo, which removes the last `SetResult`, automatically drops `success` back to `null` with no special-case code.
+- Reason: A put-then-delete as two separate calls could leave a duplicated/resumable session sitting alongside an already-saved history entry (or a deleted session with no history record) if the app closed between them — violating "never silently discard an active or completed workout" (spec §18). Reusing the session id as the stored-workout id makes a retry of the whole operation idempotent instead of needing separate dedup logic. Recomputing `success` from scratch avoids a second code path for "the exercise is no longer complete" that a hand-written undo-specific reset would require.
+- Alternatives considered: Two sequential `putRecord`/`deleteRecord` calls (rejected — not atomic); a random id for the stored workout with a separate dedup key (rejected — more state to reconcile than reusing the session id).
+- Tradeoffs: `putThenDeleteAtomic` is written as a specific two-store helper rather than a generic multi-store transaction wrapper, since Slice 3 has exactly one caller; a future caller needing a different store pair will need its own small helper or a generalization at that point.
+
 ## New entry template
 
 ```markdown

@@ -2,7 +2,8 @@ import { getRecord } from './db.js';
 import { renderSetupStep } from './setup.js';
 import { STORES } from './schema.js';
 import { renderDailyVote } from './dailyVote.js';
-import { getActiveSession, renderActiveSession, discardControlMarkup, attachDiscardHandlers } from './session.js';
+import { getActiveSession, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
+import { renderActiveExercise } from './activeExercise.js';
 
 const root = document.getElementById('app');
 
@@ -44,7 +45,7 @@ async function renderHome(settings, overrideType) {
       <div class="stacked-actions">
         ${
           activeSession
-            ? `<button id="resume-btn" class="primary-action">Resume Workout</button>${discardControlMarkup()}`
+            ? `<button id="resume-btn" class="primary-action">Resume Workout</button>${endWorkoutControlMarkup(activeSession)}`
             : `<button id="start-btn" class="primary-action">Start Workout</button>
                <button id="change-workout-btn" class="tertiary-action">Change Workout (use ${otherType})</button>`
         }
@@ -54,17 +55,17 @@ async function renderHome(settings, overrideType) {
 
   if (activeSession) {
     document.getElementById('resume-btn').addEventListener('click', () => {
-      renderActiveSession(root, activeSession, settings, {
-        onDiscarded: () => renderHome(settings),
+      renderActiveExercise(root, activeSession, settings, {
+        onSessionEnded: () => renderHome(settings),
       });
     });
-    attachDiscardHandlers(activeSession.id, () => renderHome(settings));
+    attachEndWorkoutHandlers(activeSession, () => renderHome(settings));
   } else {
     document.getElementById('start-btn').addEventListener('click', () => {
       renderDailyVote(root, proposedType, settings, {
         onLift: (session) => {
-          renderActiveSession(root, session, settings, {
-            onDiscarded: () => renderHome(settings),
+          renderActiveExercise(root, session, settings, {
+            onSessionEnded: () => renderHome(settings),
           });
         },
         onNotToday: () => renderHome(settings),
