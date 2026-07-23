@@ -1,5 +1,20 @@
 # Changelog
 
+## Slices 4 + 5 (milestone) — Rest timer, interruption recovery, exercise transitions, per-side calculations — 2026-07-22
+
+- Added the rest screen (spec §8): an absolute-timestamp countdown after every non-final set (never after an exercise's final set), **+30 sec**, **Skip Rest**, **Undo Last Set**, and a restrained chime/vibration when it reaches zero. The screen auto-advances to the next set the instant the countdown ends.
+- Countdown correctness verified under real conditions: backgrounding/reloading mid-rest recalculates the correct remaining time from the stored end timestamp; returning after the timer already expired shows "Ready for Set N," never a negative timer; a live countdown-to-zero was observed to auto-advance without manual action.
+- Added per-side weight calculations (spec §7 formula: `max(0, (target - bar) / 2)`), including the "bar only" message when target is below bar weight, now shown on every active-exercise, rest, and transition screen (`js/loadCalculations.js`).
+- Added the exercise transition screen (spec §9): a plain reps/weight summary of the just-finished exercise, the next exercise's target weight and per-side load, the per-side difference framed as add/remove/no-change, and a large **Next Exercise** button that advances to the next exercise.
+- The active-workout screen is now dispatched purely from session data (`js/workoutScreen.js`) — resting, ready-for-set, exercise-complete, or all-exercises-done — never from a separately stored flag, so a reload at any stage restores the exact right screen without any risk of duplicating a transition (ADR-009).
+- Undo is available from the exercise-complete and all-exercises-done screens too, not just the ready screen, so a mistaken final set can still be corrected before moving on.
+- After the last exercise's final set, the app shows the same completion summary plus a plain note that workout completion and progression arrive in Slice 6, alongside the existing Save as Incomplete / Discard choices — no completion or progression logic invented ahead of that slice (ADR-011).
+- Every session-mutating function now re-fetches the session fresh from IndexedDB before writing, closing a staleness risk introduced by the rest screen's long-lived render (ADR-010).
+- Set Done, partial confirmation, Undo, +30 sec, Skip Rest, and Next Exercise all show a plain-language inline error and re-enable on a simulated storage failure, verified directly for each new action; the atomic Save as Incomplete write and existing rapid-tap/undo guards were re-verified against the full 3-exercise flow.
+- Verified end-to-end: a full 15-set, 3-exercise workout recorded correct per-side weights and diffs throughout, reached the all-exercises-done screen, and saved via Save as Incomplete with all three exercises marked successful and a correct `durationSeconds`. Slice 1–3 flows (Daily Vote, Change Workout, rapid-tap guard, Discard) re-verified with no regressions.
+- Deferred: rest cards/tips (Slice 8, not yet started) — the rest screen intentionally has no card below the timer. Workout completion, progression suggestions, lifetime vote, and A/B alternation remain Slice 6.
+- Milestone passes Definition of Done.
+
 ## Slice 3 — Active exercise, Set Done, partial set, undo — 2026-07-22
 
 - Replaced the Slice 2 active-workout placeholder with the real one-exercise-at-a-time screen (`js/activeExercise.js`): exercise name, target total weight, "Ready for Set N of M," rep target, "Exercise X of Y" progress, a large **Set Done** button, a **Partial / Failed Set** inline entry (0–target reps, no modal), and a small **Undo Last Set**.

@@ -3,7 +3,7 @@ import { renderSetupStep } from './setup.js';
 import { STORES } from './schema.js';
 import { renderDailyVote } from './dailyVote.js';
 import { getActiveSession, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
-import { renderActiveExercise } from './activeExercise.js';
+import { renderWorkoutScreen } from './workoutScreen.js';
 
 const root = document.getElementById('app');
 
@@ -55,7 +55,7 @@ async function renderHome(settings, overrideType) {
 
   if (activeSession) {
     document.getElementById('resume-btn').addEventListener('click', () => {
-      renderActiveExercise(root, activeSession, settings, {
+      renderWorkoutScreen(root, activeSession, settings, {
         onSessionEnded: () => renderHome(settings),
       });
     });
@@ -64,7 +64,7 @@ async function renderHome(settings, overrideType) {
     document.getElementById('start-btn').addEventListener('click', () => {
       renderDailyVote(root, proposedType, settings, {
         onLift: (session) => {
-          renderActiveExercise(root, session, settings, {
+          renderWorkoutScreen(root, session, settings, {
             onSessionEnded: () => renderHome(settings),
           });
         },

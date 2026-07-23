@@ -68,6 +68,33 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Two sequential `putRecord`/`deleteRecord` calls (rejected — not atomic); a random id for the stored workout with a separate dedup key (rejected — more state to reconcile than reusing the session id).
 - Tradeoffs: `putThenDeleteAtomic` is written as a specific two-store helper rather than a generic multi-store transaction wrapper, since Slice 3 has exactly one caller; a future caller needing a different store pair will need its own small helper or a generalization at that point.
 
+## ADR-009 — Active-workout screen is derived from data, never from a stored flag
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: A single dispatcher (`js/workoutScreen.js`) decides which of the four active-workout screens (resting, ready-for-set, exercise-complete, all-exercises-done) to render purely from the current exercise's `setResults.length` vs `targetSets` and its `restEndsAt`, plus whether it's the session's last exercise. `session.uiState` is not read for this decision.
+- Reason: Spec §12 requires that closing the app during rest, or on an exercise-complete screen, "restore that state without duplicating completion." Deriving the screen from the same data the mutations already write means there is no separate "current screen" value that could fall out of sync with reality after a crash, a partial write, or an out-of-order reload — the screen is always a pure function of the data.
+- Alternatives considered: Storing an explicit `currentScreen` string on the session and updating it alongside each mutation; rejected because it doubles the state that has to stay consistent (data plus a label describing the data) for no behavioral benefit, and a missed update would show the wrong screen even though the underlying data was fine.
+- Tradeoffs: Every screen-rendering function must recompute its condition from the full exercise object rather than trusting a cheap flag; acceptable given the app's small data size.
+
+## ADR-010 — Rest timer as an absolute per-exercise timestamp; every mutation re-fetches the session fresh
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: `restEndsAt` (ISO string or `null`) lives on each exercise snapshot. `recordSet` sets it after a non-final set and clears it after an exercise's final set; `undoLastSet` always clears it. The rest screen's live countdown recomputes `restEndsAt - Date.now()` on each tick rather than decrementing a counter. Separately, every session-mutating function in `session.js` (`recordSet`, `undoLastSet`, `addRestTime`, `skipRest`, `advanceToNextExercise`, `saveIncompleteSession`) now re-reads the session from IndexedDB before mutating it, instead of trusting the caller's in-memory copy.
+- Reason: Spec §8 requires the countdown to survive backgrounding without drifting, which an absolute timestamp guarantees for free — a decrementing counter would need to account for however long the tab was suspended. The fresh-refetch rule closes a real staleness risk introduced by this same milestone: the rest screen deliberately keeps one render alive across a "+30 sec" tap without a full rerender (to avoid restarting the visible countdown), so the in-memory `session` object handed to later actions in that same render could otherwise be one step behind IndexedDB.
+- Alternatives considered: Manually threading the updated session object through every closure after each mutation (what Slice 2/3 did); rejected once the rest screen introduced a render that outlives a single mutation, since it would require remembering to update every closure variable by hand instead of removing the staleness risk at its source.
+- Tradeoffs: One extra `getRecord` read before every write; negligible for this app's data size, and it removes an entire class of stale-closure bugs as more screens accumulate in later slices.
+
+## ADR-011 — All-exercises-done is a placeholder screen, not early workout completion
+
+- Date: 2026-07-22
+- Status: Accepted
+- Decision: After the last exercise's final set, the app shows the same Exercise Complete summary treatment as any other exercise, plus a plain statement that workout completion and progression arrive later, and the existing Save as Incomplete / Discard choices from Slice 2/3 — not a new "complete workout" action.
+- Reason: Spec §9 says the last exercise should "proceed to workout completion," but progression suggestions, the completion summary, lifetime vote, and A/B alternation are explicitly Slice 6 (§21). Reusing Save as Incomplete here (already spec-correct: "preserving all recorded sets without applying progression or counting a Lift vote") avoids inventing a piece of completion logic ahead of the slice that owns it, and avoids building something Slice 6 would then have to reconcile or replace.
+- Alternatives considered: Building a minimal completion flow now (weight suggestions, vote increment) as part of this milestone; rejected as scope creep into Slice 6's explicitly separate acceptance behavior, and because progression math touches `ExerciseConfig` in a way this milestone was not asked to implement.
+- Tradeoffs: Finishing a full workout today saves it as "incomplete" rather than "completed" — expected and temporary until Slice 6 lands; noted as a known limitation in `CURRENT-SLICE.md` and the changelog.
+
 ## New entry template
 
 ```markdown

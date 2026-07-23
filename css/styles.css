@@ -187,6 +187,20 @@ button {
   gap: 12px;
 }
 
+.rest-timer {
+  font-size: 4rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 20px 0;
+  color: var(--color-rest);
+  font-variant-numeric: tabular-nums;
+}
+
+.exercise-transition h2 {
+  margin-top: 24px;
+  font-size: 1.2rem;
+}
+
 .error {
   color: var(--color-danger);
 }

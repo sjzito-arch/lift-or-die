@@ -18,6 +18,7 @@ function snapshotExercise(exercise, settings) {
     setResults: [],
     success: null,
     justUndone: false,
+    restEndsAt: null,
   };
 }
 
@@ -85,6 +86,19 @@ export function hasAnyRecordedSet(session) {
   return session.exerciseResults.some((ex) => ex.setResults.length > 0);
 }
 
+// Every mutation re-reads the session from IndexedDB first rather than
+// trusting the caller's in-memory copy. The rest screen in particular keeps
+// one render alive across a "+30 sec" tap without a full rerender, so an
+// in-memory `session` object can go stale; re-fetching removes that whole
+// class of bug instead of threading updated copies through every call site.
+async function getFreshSession(sessionId) {
+  const fresh = await getRecord(STORES.workoutSessions.name, sessionId);
+  if (!fresh) {
+    throw new Error('This workout session no longer exists.');
+  }
+  return fresh;
+}
+
 // Success is only ever true/false once every prescribed set for the exercise
 // has been recorded; otherwise it's null. Undo relies on this recomputation
 // to fall back to null the moment a set is removed (spec: an exercise can't
@@ -107,8 +121,12 @@ async function persistExerciseChange(session, exerciseIndex, updatedExercise) {
   return updatedSession;
 }
 
+// Starts an absolute-timestamp rest countdown after any non-final set, and
+// never starts one after an exercise's final set (spec §8). Undo always
+// cancels whatever rest the removed set caused.
 export async function recordSet(session, exerciseIndex, reps) {
-  const exercise = session.exerciseResults[exerciseIndex];
+  const fresh = await getFreshSession(session.id);
+  const exercise = fresh.exerciseResults[exerciseIndex];
   if (exercise.setResults.length >= exercise.targetSets) {
     throw new Error('This exercise already has all its sets recorded.');
   }
@@ -119,22 +137,54 @@ export async function recordSet(session, exerciseIndex, reps) {
     justUndone: false,
   };
   updatedExercise.success = computeSuccess(updatedExercise);
-  return persistExerciseChange(session, exerciseIndex, updatedExercise);
+  const isNowComplete = updatedExercise.setResults.length >= updatedExercise.targetSets;
+  updatedExercise.restEndsAt = isNowComplete
+    ? null
+    : new Date(Date.now() + updatedExercise.restSeconds * 1000).toISOString();
+  return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
 }
 
 // justUndone is persisted on the exercise (not just held in memory) so the
 // single-level undo guard survives a reload: after an undo, another undo
 // stays unavailable until a new set is recorded, even across app reopen.
 export async function undoLastSet(session, exerciseIndex) {
-  const exercise = session.exerciseResults[exerciseIndex];
-  if (exercise.setResults.length === 0) return session;
+  const fresh = await getFreshSession(session.id);
+  const exercise = fresh.exerciseResults[exerciseIndex];
+  if (exercise.setResults.length === 0) return fresh;
   const updatedExercise = {
     ...exercise,
     setResults: exercise.setResults.slice(0, -1),
     justUndone: true,
+    restEndsAt: null,
   };
   updatedExercise.success = computeSuccess(updatedExercise);
-  return persistExerciseChange(session, exerciseIndex, updatedExercise);
+  return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
+}
+
+export async function addRestTime(session, exerciseIndex, extraSeconds) {
+  const fresh = await getFreshSession(session.id);
+  const exercise = fresh.exerciseResults[exerciseIndex];
+  const baseMs = exercise.restEndsAt ? new Date(exercise.restEndsAt).getTime() : Date.now();
+  const updatedExercise = { ...exercise, restEndsAt: new Date(baseMs + extraSeconds * 1000).toISOString() };
+  return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
+}
+
+export async function skipRest(session, exerciseIndex) {
+  const fresh = await getFreshSession(session.id);
+  const exercise = fresh.exerciseResults[exerciseIndex];
+  const updatedExercise = { ...exercise, restEndsAt: null };
+  return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
+}
+
+export async function advanceToNextExercise(session) {
+  const fresh = await getFreshSession(session.id);
+  const updatedSession = {
+    ...fresh,
+    activeExerciseIndex: fresh.activeExerciseIndex + 1,
+    updatedAt: new Date().toISOString(),
+  };
+  await putRecord(STORES.workoutSessions.name, updatedSession);
+  return updatedSession;
 }
 
 // Writes the session's real set data to history and removes the active
@@ -143,23 +193,24 @@ export async function undoLastSet(session, exerciseIndex) {
 // the stored workout's id so a retry after a partial failure just re-puts
 // the same record and re-deletes an already-gone session — both idempotent.
 export async function saveIncompleteSession(session) {
+  const fresh = await getFreshSession(session.id);
   const endedAt = new Date().toISOString();
-  const durationSeconds = Math.max(0, Math.round((new Date(endedAt) - new Date(session.createdAt)) / 1000));
+  const durationSeconds = Math.max(0, Math.round((new Date(endedAt) - new Date(fresh.createdAt)) / 1000));
   const storedWorkout = {
-    id: session.id,
-    type: session.type,
+    id: fresh.id,
+    type: fresh.type,
     status: 'incomplete',
-    startedAt: session.createdAt,
+    startedAt: fresh.createdAt,
     endedAt,
     durationSeconds,
-    exerciseResults: session.exerciseResults,
+    exerciseResults: fresh.exerciseResults,
     updatedAt: null,
   };
   await putThenDeleteAtomic(
     STORES.storedWorkouts.name,
     storedWorkout,
     STORES.workoutSessions.name,
-    session.id
+    fresh.id
   );
   return storedWorkout;
 }
