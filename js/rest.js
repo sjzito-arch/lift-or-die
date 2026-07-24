@@ -1,7 +1,8 @@
-import { addRestTime, skipRest, undoLastSet, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
+import { addRestTime, skipRest, undoLastSet, markCardShown, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
 import { formatPerSideText } from './loadCalculations.js';
 import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.js';
 import { playChime } from './audio.js';
+import { pickNextCard } from './restCards.js';
 
 function formatCountdown(msRemaining) {
   const totalSeconds = Math.round(msRemaining / 1000);
@@ -37,6 +38,12 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
       <p class="muted">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
       <p class="rest-timer" id="rest-timer">${formatCountdown(restEndsAtMs - Date.now())}</p>
       <p class="rest-overtime-text" id="rest-overtime-text" hidden></p>
+
+      <div class="rest-card" id="rest-card" hidden>
+        <p class="rest-card-text" id="rest-card-text"></p>
+        <button type="button" id="next-tip-btn" class="tertiary-action">Next Tip</button>
+      </div>
+
       <p class="set-status">Set ${setsRecorded} done. Ready for Set ${nextSetNumber} of ${exercise.targetSets}.</p>
       <p class="error" id="rest-error" hidden></p>
 
@@ -161,4 +168,28 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
     stopTicking();
     onSessionEnded();
   });
+
+  // One rest card below the timer, replaced (not scrolled/autoplayed) only
+  // on an explicit Next Tip tap (spec §16). Shown keys are tracked on the
+  // session so a card doesn't repeat within the same workout.
+  async function loadCard() {
+    const card = await pickNextCard(session, settings, session.shownCardKeys ?? []);
+    const cardEl = document.getElementById('rest-card');
+    if (!card) {
+      cardEl.hidden = true;
+      return;
+    }
+    document.getElementById('rest-card-text').textContent = card.text;
+    cardEl.hidden = false;
+    try {
+      const updated = await markCardShown(session, card.key);
+      session.shownCardKeys = updated.shownCardKeys;
+    } catch (err) {
+      // Best-effort: if this fails to persist, worst case is an occasional
+      // repeated card later in the workout — not worth blocking the rest
+      // screen's primary purpose over.
+    }
+  }
+  loadCard();
+  document.getElementById('next-tip-btn').addEventListener('click', loadCard);
 }

@@ -82,6 +82,9 @@ export async function createWorkoutSession(workoutType, settings) {
     uiState: 'active-exercise',
     exerciseResults,
     completionTransactionId: null,
+    // Rest-card history for this workout (spec §12/§16): keys of cards
+    // already shown, so the rest screen can avoid repeating one.
+    shownCardKeys: [],
   };
 
   await putRecord(STORES.workoutSessions.name, session);
@@ -184,6 +187,20 @@ export async function skipRest(session, exerciseIndex) {
   const exercise = fresh.exerciseResults[exerciseIndex];
   const updatedExercise = { ...exercise, restEndsAt: null };
   return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
+}
+
+// Records that a rest card was shown, so it isn't repeated later in the same
+// workout (spec §12/§16). `shownCardKeys` lives on the session, not a single
+// exercise, since a card shouldn't repeat across the whole workout.
+export async function markCardShown(session, cardKey) {
+  const fresh = await getFreshSession(session.id);
+  const updatedSession = {
+    ...fresh,
+    shownCardKeys: [...(fresh.shownCardKeys ?? []), cardKey],
+    updatedAt: new Date().toISOString(),
+  };
+  await putRecord(STORES.workoutSessions.name, updatedSession);
+  return updatedSession;
 }
 
 export async function advanceToNextExercise(session) {

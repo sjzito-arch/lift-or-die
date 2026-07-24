@@ -1,5 +1,14 @@
 # Changelog
 
+## Slice 8 — Rest cards, personality, visual polish — 2026-07-23
+
+- **Rest cards (spec §16):** one card below the timer with **Next Tip** (`js/restCards.js`), sourced from technique cues (per exercise), general training reminders, the user's own personal motivation statement (if set), dry humor, hydration/recovery notes, upcoming-exercise info, and personalized progress derived from history. Selection is weighted toward the spec's placement preferences (technique early in an exercise, upcoming near an exercise's end, recovery near the workout's end) and filtered by category toggle and humor level; `Off` fully excludes humor (ADR-018).
+- **No repeat within a workout:** shown card keys are tracked on the session (`shownCardKeys`, spec §12) and excluded from future picks in the same workout; verified directly — 6 consecutive Next Tip taps produced 6 distinct cards. Once every available card has been shown, repeats are allowed rather than the rest screen going empty; verified with a reduced pool (humor off, one category toggled off) that repeats only start appearing after all ~13 remaining candidates had already been shown once.
+- **Timer stays visually dominant:** verified the rest timer renders at 64px vs. the card's 15px text; the card never autoplays or scrolls (only changes on an explicit Next Tip tap).
+- Visual polish: confirmed no horizontal overflow on the two most content-dense screens (Settings, the rest screen with a card showing) at a 375px mobile viewport.
+- Verified end-to-end with no console errors; Slice 1–7 regression pass (rapid-tap guard, Discard) unaffected.
+- Slice 8 passes Definition of Done.
+
 ## Slice 7 — Settings and completed-workout correction — 2026-07-23
 
 - **Fixed an atomic-transaction edge case ahead of this slice:** `putThenDeleteAtomic` and `runAtomicTransaction` now explicitly abort the IndexedDB transaction if their own setup code throws after already queuing some requests — otherwise the already-queued writes could still commit despite the failure. Fixed a second bug found while fixing the first: a request queued before the abort could fire `onerror` with `txn.error === null` before `onabort` fires, discarding the real error; both handlers now resolve through the same fallback chain (ADR-016). Verified directly: a queued write followed by a thrown/failing setup step never persisted, in both helpers.

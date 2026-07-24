@@ -149,6 +149,15 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Automatically applying the correction; rejected — directly contradicts the spec's explicit default. Recalculating every later workout's progression chain from this point forward; rejected as out of scope ("does not silently recalculate later workouts or current working weights") and because a real recalculation would need to walk forward through every subsequent workout for that exercise, which the spec doesn't ask for.
 - Tradeoffs: If a workout several sessions back is edited, the offered correction only affects the *current* working weight, not weights implied by workouts in between — an intentional, spec-directed limitation, not an oversight.
 
+## ADR-018 — Rest cards: weighted random selection over a fixed schedule
+
+- Date: 2026-07-23
+- Status: Accepted
+- Decision: `js/restCards.js` builds a full candidate pool every time a card is needed (technique, general, personal motivation, humor, recovery, upcoming-exercise, personal progress), assigns each a weight boosted by context (technique early in an exercise, upcoming near an exercise's end, recovery near the workout's end), filters by category toggle and humor level, excludes already-shown keys for the session, then picks weighted-randomly. If every candidate has already been shown this workout, repeats are allowed rather than showing nothing.
+- Reason: Spec §16 states *preferences* ("prefer relevant technique early... upcoming setup near an exercise end...") not a rigid schedule, and lists "do not repeat a card in the same workout" as a rule that has to coexist with a workout that might run out of fresh material (e.g. a very long session, or several categories toggled off). Weighting nudges the selection toward the spec's stated preferences without hard-coding "card N is always technique" — the exact set of exercises, toggles, and history data vary per user and per workout.
+- Alternatives considered: A fixed per-rest-period schedule (e.g. "always technique on rest 1, always upcoming on the last rest"); rejected as more rigid than the spec asks for and harder to gracefully degrade when a category is toggled off or humor is off. Silently showing nothing once the pool is exhausted; rejected — spec's "do not repeat" reads as a preference to honor when possible, not a mandate to leave the rest screen without a card.
+- Tradeoffs: Selection isn't deterministic (two runs with identical state can show cards in a different order) — acceptable for restrained personality content that's explicitly not meant to be data the user depends on.
+
 ## New entry template
 
 ```markdown

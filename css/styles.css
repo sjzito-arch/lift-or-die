@@ -214,6 +214,27 @@ button {
   margin: 0 0 16px;
 }
 
+/* Deliberately smaller and quieter than .rest-timer — the timer stays
+   visually dominant, the card is a secondary, optional aside (spec §16). */
+.rest-card {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.rest-card-text {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.rest-card .tertiary-action {
+  min-height: 36px;
+  font-size: 0.85rem;
+}
+
 .exercise-transition h2 {
   margin-top: 24px;
   font-size: 1.2rem;
