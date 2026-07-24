@@ -131,6 +131,24 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Adding a lightweight edit action now since the data is already on screen; rejected to keep this slice's scope matched to the spec's own slice boundary, and because editing has its own requirements (Save/Cancel, `updatedAt`, no retroactive recalculation) that deserve their own slice rather than an afterthought here.
 - Tradeoffs: A user correcting a typo'd weight or reps must wait for Slice 7; noted as a known limitation.
 
+## ADR-016 — Atomic transaction helpers must explicitly abort on setup-work failure
+
+- Date: 2026-07-23
+- Status: Accepted
+- Decision: `putThenDeleteAtomic` and `runAtomicTransaction` (`db.js`) now catch a synchronous throw from their own setup code and call `txn.abort()` before rejecting, instead of just rejecting the promise. Both `onerror` and `onabort` resolve through the same `setupError ?? txn.error ?? new Error(...)` fallback chain.
+- Reason: If setup code queues some requests and then throws (e.g. three of five `put()` calls succeed, a fourth line has a bug), IndexedDB has no way to know the driving JS failed partway through unless told to abort — without an explicit `abort()`, the already-queued requests would still commit, silently breaking the "all or nothing" guarantee these helpers exist to provide. A second bug surfaced while fixing the first: a request queued before the abort can fire the transaction's `onerror` (with `txn.error === null`, since that's a caller-initiated abort per spec) *before* `onabort` fires, and a bare `reject(txn.error)` there would resolve the whole promise with `null`, discarding the real error. Both handlers must compute the same rejection value so whichever fires first is still correct.
+- Alternatives considered: Only rejecting without aborting (the original implementation — the bug this ADR fixes); rejected because it doesn't actually stop a partial commit. Preventing the bubbling request-error event with `event.preventDefault()` to suppress the `onerror` race instead of unifying the two handlers; rejected as more fragile — it depends on attaching a per-request listener at every call site rather than making the two transaction-level handlers agree once.
+- Tradeoffs: None significant; verified directly by forcing a throw after queuing a request in both helpers and confirming the queued write never persisted and the real error message (not `null`) propagated.
+
+## ADR-017 — Completed-workout success-flip correction is offered per exercise, never automatic
+
+- Date: 2026-07-23
+- Status: Accepted
+- Decision: Editing a completed workout's reps can change whether an exercise counts as successful. When it does, `js/history.js` shows one Skip/Adjust choice per affected exercise with the exact suggested `currentWeight` (± the exercise's own `increment`), applied to `exerciseConfigs` only if the user taps Adjust. Nothing is touched automatically, and only exercises whose success verdict actually changed are shown.
+- Reason: Spec §10 is explicit: "offer an explicit, previewed correction... default is no downstream change." A per-exercise choice (rather than one blanket apply-all) keeps the user in control when only some exercises in a multi-exercise workout flip, and reusing the exercise's own stored `increment` for the suggested delta keeps the math consistent with how progression was computed the first time.
+- Alternatives considered: Automatically applying the correction; rejected — directly contradicts the spec's explicit default. Recalculating every later workout's progression chain from this point forward; rejected as out of scope ("does not silently recalculate later workouts or current working weights") and because a real recalculation would need to walk forward through every subsequent workout for that exercise, which the spec doesn't ask for.
+- Tradeoffs: If a workout several sessions back is edited, the offered correction only affects the *current* working weight, not weights implied by workouts in between — an intentional, spec-directed limitation, not an oversight.
+
 ## New entry template
 
 ```markdown

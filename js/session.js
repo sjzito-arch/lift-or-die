@@ -113,7 +113,7 @@ async function getFreshSession(sessionId) {
 // has been recorded; otherwise it's null. Undo relies on this recomputation
 // to fall back to null the moment a set is removed (spec: an exercise can't
 // carry a stale success verdict once it's no longer fully recorded).
-function computeSuccess(exercise) {
+export function computeSuccess(exercise) {
   if (exercise.setResults.length < exercise.targetSets) return null;
   return exercise.setResults.every((s) => s.reps >= exercise.targetReps);
 }

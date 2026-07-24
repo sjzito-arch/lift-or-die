@@ -5,6 +5,7 @@ import { renderDailyVote } from './dailyVote.js';
 import { getActiveSession, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
 import { renderWorkoutScreen } from './workoutScreen.js';
 import { renderHistoryList } from './history.js';
+import { renderSettings } from './settings.js';
 
 const root = document.getElementById('app');
 
@@ -80,12 +81,16 @@ async function renderHome(overrideType) {
       </div>
       <div class="stacked-actions">
         <button id="history-btn" class="secondary-action">History</button>
+        <button id="settings-btn" class="secondary-action">Settings</button>
       </div>
     </main>
   `;
 
   document.getElementById('history-btn').addEventListener('click', () => {
     renderHistoryList(root, settings, { onBack: () => renderHome() });
+  });
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    renderSettings(root, { onBack: () => renderHome() });
   });
 
   if (activeSession) {
