@@ -1,5 +1,13 @@
 # Changelog
 
+## Slice 9 — Manifest, service worker, offline, installability — 2026-07-23
+
+- **Icons:** hand-authored on-brand SVG barbell glyph (dark background, orange bar/plates matching the existing palette), rasterized to PNG via macOS's built-in `sips` (no new dependency) at 512×512, 192×192, 180×180 (`apple-touch-icon`), and 32×32 (favicon).
+- **`manifest.json`:** name, short name, standalone display, portrait orientation, theme/background color matching `--color-bg`, and both icon sizes. `index.html`'s `<head>` gained the manifest link, favicon, `apple-touch-icon`, `theme-color`, and `apple-mobile-web-app-*` meta tags for iOS Home Screen install.
+- **Service worker (`sw.js`, spec §19, ADR-019):** precaches the full app shell (HTML, CSS, every JS module, all four icons — 27 files) on install and serves cache-first, so the app keeps working after the network goes away. Registered from a small inline script in `index.html`, guarded by `'serviceWorker' in navigator` so it no-ops gracefully anywhere unsupported.
+- Verified on a fresh origin: service worker registers and takes control on first load; all 27 shell files present in the cache; killing the server entirely and reloading still renders the full app (confirmed via console/network inspection, no errors) with the manifest, icons, and meta tags all resolving from cache.
+- Slice 9 passes Definition of Done. This closes the Slices 7+8+9 final V1 milestone — see `CURRENT-SLICE.md` for the full milestone report and iPhone installation steps.
+
 ## Slice 8 — Rest cards, personality, visual polish — 2026-07-23
 
 - **Rest cards (spec §16):** one card below the timer with **Next Tip** (`js/restCards.js`), sourced from technique cues (per exercise), general training reminders, the user's own personal motivation statement (if set), dry humor, hydration/recovery notes, upcoming-exercise info, and personalized progress derived from history. Selection is weighted toward the spec's placement preferences (technique early in an exercise, upcoming near an exercise's end, recovery near the workout's end) and filtered by category toggle and humor level; `Off` fully excludes humor (ADR-018).

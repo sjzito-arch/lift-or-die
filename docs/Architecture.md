@@ -158,6 +158,15 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: A fixed per-rest-period schedule (e.g. "always technique on rest 1, always upcoming on the last rest"); rejected as more rigid than the spec asks for and harder to gracefully degrade when a category is toggled off or humor is off. Silently showing nothing once the pool is exhausted; rejected — spec's "do not repeat" reads as a preference to honor when possible, not a mandate to leave the rest screen without a card.
 - Tradeoffs: Selection isn't deterministic (two runs with identical state can show cards in a different order) — acceptable for restrained personality content that's explicitly not meant to be data the user depends on.
 
+## ADR-019 — Service worker: cache-first app shell, versioned by a hand-bumped string
+
+- Date: 2026-07-23
+- Status: Accepted
+- Decision: `sw.js` precaches the full app shell (index.html, manifest.json, styles.css, every `js/*.js` module, and the four icon files) under a single cache keyed by a `CACHE_VERSION` string constant. The fetch handler serves cache-first for every GET request, falling back to network (and caching a successful network response for next time), and falls back to the cached `index.html` for a failed navigation request. There is no build step to hash filenames, so `CACHE_VERSION` must be bumped by hand whenever a precached file's contents change; `activate` deletes any cache whose key doesn't match the current version.
+- Reason: Spec §19 requires the app to keep working fully offline after first load, on a personal single-user app with no server-rendered or frequently-changing content — cache-first is simpler and more reliably offline-correct than a network-first or stale-while-revalidate strategy here, since there's nothing external this app needs to stay fresh against. Precaching the exact static file list (rather than caching opportunistically on first visit) guarantees the whole shell is available offline immediately after install, not just whichever screens happened to be visited first.
+- Alternatives considered: Network-first with cache fallback; rejected because it would make every normal (online) load wait on the network for no benefit, for an app with no dynamic server content to prefer. A build-time content-hash/versioning tool; rejected as a new dependency this project's minimal-dependency policy doesn't justify for a one-developer static file list of ~25 files.
+- Tradeoffs: Forgetting to bump `CACHE_VERSION` after editing a precached file means the old cached copy keeps being served until the version string changes — an accepted manual step, not automated, consistent with the no-build-step constraint.
+
 ## New entry template
 
 ```markdown
