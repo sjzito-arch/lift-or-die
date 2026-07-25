@@ -194,6 +194,33 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Acquiring the lock for the whole workout session (including the completion review); rejected as broader than the stated need — completion review is read up close, standing still, so there's no reason to fight the OS's normal power management there. A polyfill for pre-16.4 iOS (e.g. a silently looping muted video) to fake a wake lock; rejected as unnecessary complexity for a personal app on a phone that will run a current iOS version.
 - Tradeoffs: The request only reliably succeeds when called within a live user-activation window; if an await (e.g. a slow IndexedDB write) exhausts that window before the request fires, the request can silently fail rather than throw — the next recording-screen render (triggered by the next tap) tries again, so the lock typically does still engage within a set or two even if a given attempt misses. Battery drains faster while the lock is held; acceptable for the duration of one workout. Full background/foreground behavior needs verification on a real device — flagged for the product owner's own gym test rather than assumed from browser-based testing.
 
+## ADR-023 — Daily ritual folded directly into Home; separate Daily Vote screen retired
+
+- Date: 2026-07-25
+- Status: Accepted
+- Decision: The "Lift or Die?" ritual is no longer a separate screen (`js/dailyVote.js`, now deleted). Home renders two buttons directly — **Lift? (Start Workout)** and **Die? (maybe later)** — with the same primary/secondary visual hierarchy the old screen used for Lift/Not-today. Tapping Lift? creates the session and enters the workout in one step (no intermediate confirmation); tapping Die? shows the existing "Fair enough. We'll be here." copy inline from Home, unchanged.
+- Reason: Product owner's explicit, repeatedly-confirmed request across several clarifying rounds — this removes an extra tap/screen from starting a workout, which fits the app's own "one tap is better than two" principle. This also makes "Die" a real, equally-weighted tappable choice, which an earlier version of the Style Guide and Product Spec explicitly said not to do ("do not require the user to press a literal 'Die' button"); both docs were updated the same day to match, since "Die" carries no real penalty and framing it as a genuine choice doesn't conflict with the app's forgiving tone once actually built and reviewed.
+- Alternatives considered: Keeping the separate screen but relabeling its buttons; rejected once the product owner specifically asked to remove the extra step, not just reword it.
+- Tradeoffs: None functionally — `createWorkoutSession`'s error handling (a missing exercise config, etc.) moved from `dailyVote.js` into `app.js` unchanged, still showing an inline error on Home rather than failing silently.
+
+## ADR-024 — Swipe-to-reveal Undo on the rest screen, confirm-before-executing
+
+- Date: 2026-07-25
+- Status: Accepted
+- Decision: `js/rest.js` adds a swipe-right gesture (touchstart/touchend, general content area — not anchored to the left edge, to avoid colliding with iOS Safari's own edge-swipe-back gesture) that reveals an "Undo" button sliding in from the left over the existing "‹ Undo Last Set" link. The swipe alone never fires the undo; only tapping the revealed button does. The always-visible link is untouched and still executes immediately on tap. Scoped to the rest screen only (both its counting-down and overtime states), not the other three screens that also have their own Undo control.
+- Reason: This screen is explicitly designed to sit untouched on the ground or a gym bag (distance-readability work, same day) — exactly the condition most likely to produce an accidental full-swipe gesture. Undo has no redo once it fires (the single-level guard blocks a second undo until a new set is recorded), so an accidental swipe-triggered undo would be silent data loss with no easy way back. Requiring a confirming tap after the swipe closes that risk at the cost of one extra tap, which was worth it given the swipe path is specifically the one at risk of firing by accident — the deliberate, always-visible link keeps its one-tap-and-done behavior since a deliberate tap there isn't at the same risk.
+- Alternatives considered: Undo executing immediately on swipe completion; rejected for the reason above. Applying the same swipe gesture to the other three screens' Undo controls; rejected as unrequested scope — the change was introduced against this screen's screenshots specifically.
+- Tradeoffs: Two different interaction models for the same action on the same screen (immediate via the link, confirm-then-tap via the swipe) — an intentional asymmetry, not an oversight, since the two paths carry different accidental-trigger risk.
+
+## ADR-025 — Reset Workout History: a second, narrower reset than Reset All Data
+
+- Date: 2026-07-25
+- Status: Accepted
+- Decision: Settings gains a second de-emphasized destructive action, **Reset Workout History**, alongside the existing **Reset all data**. It clears `storedWorkouts` and `workoutSessions` and zeroes `appSettings.lifetimeVotes` in one atomic transaction (`db.js`'s `resetWorkoutHistory()`, built on the existing `runAtomicTransaction` helper), but leaves `exerciseConfigs` (including `currentWeight`), `workoutTemplates`, and the rest of `appSettings` untouched. Reloads the page after success, same as Reset All Data.
+- Reason: Product owner wanted a fast way to re-test the workout flow repeatedly without redoing the full setup wizard each time. `lifetimeVotes` resets to 0 despite living in `appSettings` (which is otherwise preserved) because it's derived from completed workouts, which this erases — leaving it non-zero with no backing history would be inconsistent. Exercise weights are explicitly left alone per the product owner's own instruction, distinguishing this from a full data wipe.
+- Alternatives considered: Extending `resetAllData()` with a flag/parameter; rejected in favor of a separate, clearly-named function, since the two operations have meaningfully different scope and mixing them behind a flag would make either one harder to reason about in isolation.
+- Tradeoffs: None. Verified directly: history and votes cleared, exercise weights and other settings confirmed unchanged afterward.
+
 ## New entry template
 
 ```markdown

@@ -1,8 +1,7 @@
 import { getRecord, getAllRecords } from './db.js';
 import { renderSetupStep } from './setup.js';
 import { STORES } from './schema.js';
-import { renderDailyVote } from './dailyVote.js';
-import { getActiveSession, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
+import { getActiveSession, createWorkoutSession, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
 import { renderWorkoutScreen } from './workoutScreen.js';
 import { renderHistoryList } from './history.js';
 import { renderSettings } from './settings.js';
@@ -81,7 +80,15 @@ async function renderHome(overrideType) {
         ${
           activeSession
             ? `<button id="resume-btn" class="primary-action">Resume Workout</button>${endWorkoutControlMarkup(activeSession)}`
-            : `<button id="start-btn" class="primary-action">Start Workout</button>
+            : `<button id="lift-btn" class="primary-action">
+                 <span class="btn-headline">Lift?</span>
+                 <span class="btn-subtext">(Start Workout)</span>
+               </button>
+               <button id="die-btn" class="secondary-action">
+                 <span class="btn-headline">Die?</span>
+                 <span class="btn-subtext">(maybe later)</span>
+               </button>
+               <p class="error" id="lift-error" hidden></p>
                <button id="change-workout-btn" class="tertiary-action">Change Workout (use ${otherType})</button>`
         }
       </div>
@@ -107,19 +114,40 @@ async function renderHome(overrideType) {
     });
     attachEndWorkoutHandlers(activeSession, () => renderHome());
   } else {
-    document.getElementById('start-btn').addEventListener('click', () => {
-      renderDailyVote(root, proposedType, settings, {
-        onLift: (session) => {
-          renderWorkoutScreen(root, session, settings, {
-            onSessionEnded: () => renderHome(),
-          });
-        },
-        onNotToday: () => renderHome(),
+    const liftBtn = document.getElementById('lift-btn');
+    liftBtn.addEventListener('click', async () => {
+      liftBtn.disabled = true;
+      const { session, error } = await createWorkoutSession(proposedType, settings);
+      if (error) {
+        liftBtn.disabled = false;
+        const errEl = document.getElementById('lift-error');
+        errEl.textContent = error;
+        errEl.hidden = false;
+        return;
+      }
+      renderWorkoutScreen(root, session, settings, {
+        onSessionEnded: () => renderHome(),
       });
+    });
+    document.getElementById('die-btn').addEventListener('click', () => {
+      renderFarewell();
     });
     document.getElementById('change-workout-btn').addEventListener('click', () => {
       renderHome(otherType);
     });
+  }
+
+  // The daily ritual's "no" path — same copy as before, now surfaced
+  // directly from Home instead of a separate screen. Changes no state.
+  function renderFarewell() {
+    root.innerHTML = `
+      <main class="home">
+        <h1>Fair enough.</h1>
+        <p class="muted">We'll be here.</p>
+        <button id="farewell-home-btn" class="primary-action">Home</button>
+      </main>
+    `;
+    document.getElementById('farewell-home-btn').addEventListener('click', () => renderHome());
   }
 }
 

@@ -1,4 +1,4 @@
-import { getRecord, runAtomicTransaction, resetAllData } from './db.js';
+import { getRecord, runAtomicTransaction, resetAllData, resetWorkoutHistory } from './db.js';
 import { STORES, EXERCISE_ORDER, CARD_CATEGORIES } from './schema.js';
 
 function renderToggleCheckboxes(toggles) {
@@ -145,6 +145,16 @@ export async function renderSettings(root, { onBack }) {
           <div class="step-actions">
             <button id="reset-all-cancel" class="secondary-action">Cancel</button>
             <button id="reset-all-confirm-btn" class="primary-action">Erase Everything</button>
+          </div>
+        </div>
+
+        <button id="reset-history-btn" class="tertiary-action">Reset Workout History</button>
+        <div id="reset-history-confirm" class="discard-panel" hidden>
+          <p>This permanently erases all workout history and lifetime votes, but keeps your exercises, weights, and settings as they are. Cannot be undone.</p>
+          <p class="error" id="reset-history-error" hidden></p>
+          <div class="step-actions">
+            <button id="reset-history-cancel" class="secondary-action">Cancel</button>
+            <button id="reset-history-confirm-btn" class="primary-action">Erase History</button>
           </div>
         </div>
       </div>
@@ -301,6 +311,26 @@ export async function renderSettings(root, { onBack }) {
     } catch (err) {
       e.target.disabled = false;
       errEl.textContent = 'Could not reset data. Check your storage and try again.';
+      errEl.hidden = false;
+    }
+  });
+
+  document.getElementById('reset-history-btn').addEventListener('click', () => {
+    document.getElementById('reset-history-confirm').hidden = false;
+  });
+  document.getElementById('reset-history-cancel').addEventListener('click', () => {
+    document.getElementById('reset-history-confirm').hidden = true;
+  });
+  document.getElementById('reset-history-confirm-btn').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    const errEl = document.getElementById('reset-history-error');
+    errEl.hidden = true;
+    try {
+      await resetWorkoutHistory();
+      window.location.reload();
+    } catch (err) {
+      e.target.disabled = false;
+      errEl.textContent = 'Could not reset workout history. Check your storage and try again.';
       errEl.hidden = false;
     }
   });

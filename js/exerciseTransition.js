@@ -5,8 +5,8 @@ import {
   endWorkoutControlMarkup,
   attachEndWorkoutHandlers,
 } from './session.js';
-import { formatPerSideText, computeLoadDifferenceText } from './loadCalculations.js';
-import { formatSetSummary, formatResultText } from './statsCalculations.js';
+import { formatLoadBreakdownText, computeLoadDifferenceText } from './loadCalculations.js';
+import { setChipsMarkup, formatResultText } from './statsCalculations.js';
 import { acquireWakeLock } from './wakeLock.js';
 
 // Exercise transition (spec §9): summary of the just-finished exercise, the
@@ -32,13 +32,12 @@ export function renderExerciseCompleteScreen(root, session, settings, { onSessio
     <main class="exercise-transition">
       <h1>Exercise Complete</h1>
       <p class="set-status">${exercise.name} — ${exercise.targetWeight} ${settings.units}</p>
-      <p class="muted">${formatSetSummary(exercise)}</p>
-      <p>${formatResultText(exercise)}</p>
+      ${setChipsMarkup(exercise)}
+      <p>${formatResultText(exercise, settings.units)}</p>
 
       <h2>Next: ${nextExercise.name}</h2>
-      <p class="target-weight">${nextExercise.targetWeight} ${settings.units}</p>
-      <p class="per-side-text">${formatPerSideText(nextExercise.targetWeight, nextExercise.barWeight, settings.units)}</p>
       <p class="per-side-text">${diffText}</p>
+      <p class="load-breakdown">${formatLoadBreakdownText(nextExercise.targetWeight, nextExercise.barWeight, settings.units)}</p>
       <p class="error" id="next-error" hidden></p>
 
       <div class="stacked-actions">

@@ -84,12 +84,13 @@ Setup must be resumable if interrupted. Do not create duplicate exercise records
 
 ## 5. Daily ritual
 
-Before beginning a proposed workout, show the question **Lift or Die?**
+The ritual is presented directly on the Home screen (no separate screen) as two buttons:
 
-- **Lift** starts the workout preparation flow and records a lifetime “vote for Future You” only when the workout is ultimately completed.
-- **Not today** exits kindly without guilt, breaking no streak and creating no failed workout. Suggested copy: “Fair enough. We’ll be here.”
-- Do not require the user to press a literal “Die” button.
-- Do not show this prompt repeatedly on every app open after the user has already started a workout; resume the active session instead.
+- **Lift? (Start Workout)** starts the workout directly and records a lifetime “vote for Future You” only when the workout is ultimately completed.
+- **Die? (maybe later)** exits kindly without guilt, breaking no streak and creating no failed workout. Suggested copy: “Fair enough. We’ll be here.”
+- “Die” is framing, not a punishment: tapping it has no negative consequence beyond returning to Home. It is offered as a real, equally-weighted choice next to Lift, consistent with the app’s forgiving tone — revised from an earlier version of this spec that treated “Die” as something to avoid making tappable.
+- Do not show a separate confirmation screen; Home itself is the ritual.
+- Do not re-prompt on every app open once a workout is already active; resume the active session instead.
 
 ## 6. Home screen
 

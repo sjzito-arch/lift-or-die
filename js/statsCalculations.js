@@ -32,6 +32,28 @@ export function formatSetSummary(exercise) {
     .join(' · ');
 }
 
-export function formatResultText(exercise) {
-  return exercise.success ? 'All sets hit target.' : 'Not every set hit target — still counted.';
+// Carries the progression implication so the result reads as "what happens
+// next," not just pass/fail. No exclamation points here — this repeats once
+// per exercise (up to 5 times on the Workout Complete screen), and the app
+// reserves its one celebratory flourish for the single workout summary
+// screen, not every individual card.
+export function formatResultText(exercise, units) {
+  return exercise.success
+    ? `All sets hit target. Adding ${exercise.increment} ${units} next time.`
+    : 'Not every set hit target. Same weight next time.';
+}
+
+// A row of per-set result chips (Exercise Complete / Workout Complete): a
+// hit is a plain checkmark (the rep count is already known from the target,
+// so restating it is redundant); a miss shows the actual rep count instead,
+// styled as a neutral outline rather than a warning color — this app never
+// shames a missed set, so red is deliberately avoided here.
+export function setChipsMarkup(exercise) {
+  return `<div class="set-chips">${exercise.setResults
+    .map((s) =>
+      s.reps >= exercise.targetReps
+        ? `<div class="set-chip set-chip--hit">&#10003;</div>`
+        : `<div class="set-chip set-chip--miss">${s.reps}</div>`
+    )
+    .join('')}</div>`;
 }

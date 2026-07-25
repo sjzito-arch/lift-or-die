@@ -167,16 +167,17 @@ button {
   margin-top: 12px;
 }
 
-.target-weight {
-  font-size: 1.15rem;
-  font-weight: 600;
-  margin: 4px 0 12px;
-}
-
 .per-side-text {
   font-size: 1rem;
   font-weight: 600;
   margin: 4px 0;
+}
+
+.load-breakdown {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 2px 0 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .set-status {
@@ -205,17 +206,10 @@ button {
   line-height: 1.15;
 }
 
-.active-exercise .target-weight,
-.rest-screen .target-weight,
-.exercise-transition .target-weight {
-  font-size: 2.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .active-exercise .per-side-text,
 .rest-screen .per-side-text,
 .exercise-transition .per-side-text {
-  font-size: 1.75rem;
+  font-size: 2.5rem;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
 }
@@ -462,4 +456,138 @@ button {
 .reset-all-section {
   margin-top: 32px;
   text-align: center;
+}
+
+.reset-all-section .tertiary-action {
+  display: block;
+  margin: 0 auto;
+}
+
+#reset-history-btn {
+  margin-top: 16px;
+}
+
+/* Home's Lift?/Die? buttons: same primary/secondary hierarchy as the old
+   Lift/Not-today screen, just with a smaller clarifying subtext line. */
+.btn-headline {
+  display: block;
+  font-size: 1.15rem;
+}
+
+.btn-subtext {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+/* +30 sec / Skip Rest: colored to match their own meaning (green = adds
+   success-colored time, amber = matches the resting timer) instead of
+   generic gray, so they're easier to tell apart at a glance. */
+.add-rest-action {
+  background: var(--color-success);
+  color: #11161c;
+}
+
+.skip-rest-action {
+  background: var(--color-rest);
+  color: #11161c;
+}
+
+/* Swipe-to-reveal Undo (rest screen only): the reveal button sits absolutely
+   over the always-visible "Undo Last Set" link so it takes no extra layout
+   space, sliding in from the left on a qualifying swipe. Swiping alone never
+   fires the undo — only tapping the revealed button does. */
+.undo-row {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.undo-reveal-action {
+  position: absolute;
+  inset: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: 700;
+  transform: translateX(-100%);
+  transition: transform 200ms ease;
+  pointer-events: none;
+}
+
+.undo-reveal-action--shown {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Set-result chips (Exercise Complete / Workout Complete): a hit is a plain
+   checkmark (the rep count is already implied by the target); a miss shows
+   the actual rep count in a neutral outline — no red, this app never shames
+   a missed set. */
+.set-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+
+.set-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.set-chip--hit {
+  background: var(--color-success);
+  color: #11161c;
+}
+
+.set-chip--miss {
+  background: transparent;
+  border: 2px solid var(--color-text-muted);
+  color: var(--color-text);
+}
+
+/* Rep stepper (Partial Set entry): avoids the number keyboard for the common
+   case; the input stays tappable/typable as a fallback for a bigger jump. */
+.rep-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.rep-stepper-btn {
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  flex-shrink: 0;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rep-stepper input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.setup-hint {
+  margin-top: -8px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
 }

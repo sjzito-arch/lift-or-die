@@ -139,13 +139,14 @@ async function renderExerciseStep(root, settings, stepIndex, exerciseId, onCompl
       <h1>${exercise.name}</h1>
       <form id="exercise-form">
         <label>Original starting weight
-          <input type="number" name="originalWeight" value="${exercise.originalWeight ?? ''}" min="0" step="0.5" required>
+          <input type="number" name="originalWeight" value="${exercise.originalWeight ?? settings.globalDefaultBarWeight}" min="0" step="0.5" required>
         </label>
         <label>Current working weight
           <input type="number" name="currentWeight" value="${exercise.currentWeight ?? ''}" min="0" step="0.5" required>
         </label>
+        <p class="muted setup-hint">First time? Use the same as your starting weight above.</p>
         <label>Weight increment
-          <input type="number" name="increment" value="${exercise.increment ?? ''}" min="0" step="0.5" required>
+          <input type="number" name="increment" value="${exercise.increment ?? 5}" min="0" step="0.5" required>
         </label>
         <label>Bar weight (blank uses default of ${settings.globalDefaultBarWeight})
           <input type="number" name="barWeight" value="${exercise.barWeight ?? ''}" min="0" step="0.5">

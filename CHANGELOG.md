@@ -1,5 +1,16 @@
 # Changelog
 
+## UX refinement batch — 7 changes — 2026-07-25
+
+- **Setup defaults:** original starting weight now defaults to the global default bar weight; increment defaults to 5; current working weight stays required but gets a helper hint ("First time? Use the same as your starting weight above.").
+- **Home merges the daily ritual (ADR-023):** the separate "Lift or Die?" screen (`js/dailyVote.js`) is retired. Home now shows **Lift? (Start Workout)** and **Die? (maybe later)** directly, same primary/secondary hierarchy as before. Lift? creates the session and enters the workout in one tap; Die? shows the unchanged "Fair enough. We'll be here." copy inline. Style Guide and Product Spec updated to match — both previously said not to make "Die" a real tappable choice.
+- **Per-side weight is now the dominant number on the ready/rest/transition screens:** promoted to the old total-weight size; total weight demoted to a small "bar + side × 2 = total" line underneath. On the exercise-transition screen, the add/remove load-difference instruction takes the dominant slot instead.
+- **Rest screen restructuring:** "Begin Set N of M now." stays hidden until the timer hits zero; +30 sec now sits above the timer, Skip Rest below it (previously grouped together), each recolored to match its own meaning (green/amber); the rest card/tip disappears entirely once overtime starts; Undo Last Set gained a `‹` cue and a swipe-right-to-reveal shortcut (ADR-024) that requires a confirming tap before it fires, on top of the always-visible link.
+- **Set-result chips replace the old text list** on Exercise Complete and Workout Complete: a hit is a plain checkmark, a miss shows the actual rep count in a neutral outline (no red). The result line now names the progression implication: "All sets hit target. Adding {increment} {units} next time." / "Not every set hit target. Same weight next time."
+- **"Partial / Failed Set" → "Partial Set"**, and its rep-entry panel gained bigger −/+ stepper buttons to avoid the number keyboard for the common case; typing still works as a fallback.
+- **Settings: Reset Workout History (ADR-025)** — a second, narrower reset next to Reset All Data. Clears workout history/sessions and zeroes lifetime votes, but leaves exercise weights and other settings untouched, for repeat testing without redoing setup.
+- Verified end-to-end: a full workout (including a partial set) through Setup → Home → all three recording screens → completion → Settings reset, with no console errors; swipe-reveal-undo, stepper clamping, and Reset Workout History's exact before/after data confirmed directly against IndexedDB.
+
 ## Distance readability pass — recording screens — 2026-07-25
 
 - **Scroll-to-top on every workout screen (`js/workoutScreen.js`):** replacing `root.innerHTML` doesn't reset scroll on its own — a screen shorter than wherever the previous one was scrolled to used to render already scrolled past its own top. Fixed for all four workout screens in the one shared dispatcher.

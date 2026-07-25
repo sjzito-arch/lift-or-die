@@ -6,7 +6,7 @@ import {
   endWorkoutControlMarkup,
   attachEndWorkoutHandlers,
 } from './session.js';
-import { computeWorkoutVolume, pickHumorousHeadline, formatSetSummary, formatResultText } from './statsCalculations.js';
+import { computeWorkoutVolume, pickHumorousHeadline, setChipsMarkup, formatResultText } from './statsCalculations.js';
 
 function formatDuration(totalSeconds) {
   const m = Math.floor(totalSeconds / 60);
@@ -36,8 +36,9 @@ export function renderWorkoutCompletionScreen(root, session, settings, { onSessi
             <span>${ex.name}</span>
             <span class="review-sets">${ex.targetSets}×${ex.targetReps}</span>
           </div>
-          <div class="review-stats">${ex.targetWeight} ${settings.units} · ${formatSetSummary(ex)}</div>
-          <p class="muted">${formatResultText(ex)}</p>
+          <div class="review-stats">${ex.targetWeight} ${settings.units}</div>
+          ${setChipsMarkup(ex)}
+          <p class="muted">${formatResultText(ex, settings.units)}</p>
           <label>Next working weight
             <input type="number" class="next-weight-input" data-exercise-id="${ex.exerciseId}" value="${computeSuggestedWeight(ex)}" min="0" step="0.5">
           </label>

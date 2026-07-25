@@ -90,6 +90,22 @@ export async function resetAllData() {
   await seedDefaults(db);
 }
 
+// Reset Workout History (Settings): clears storedWorkouts and
+// workoutSessions and zeroes lifetimeVotes, but leaves the rest of
+// appSettings, exerciseConfigs, and workoutTemplates untouched — lets the
+// product owner re-test the workout flow repeatedly without redoing setup.
+export async function resetWorkoutHistory() {
+  const settings = await getRecord(STORES.appSettings.name, 'settings');
+  await runAtomicTransaction(
+    [STORES.storedWorkouts.name, STORES.workoutSessions.name, STORES.appSettings.name],
+    (stores) => {
+      stores[STORES.storedWorkouts.name].clear();
+      stores[STORES.workoutSessions.name].clear();
+      stores[STORES.appSettings.name].put({ ...settings, lifetimeVotes: 0 });
+    }
+  );
+}
+
 // Puts one record and deletes another in a single transaction so the two
 // writes commit together or not at all (e.g. saving a workout to history
 // while removing its active session).

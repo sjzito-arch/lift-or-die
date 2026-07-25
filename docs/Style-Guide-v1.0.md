@@ -96,7 +96,7 @@ Avoid:
 
 ## Daily ritual
 
-Brand question: **Lift or Die?** Interaction choices remain positive: **Lift** and **Not today**. “Die” is framing, not a shaming action.
+Brand question: **Lift or Die?**, presented directly on Home as two buttons: **Lift? (Start Workout)** and **Die? (maybe later)**. “Die” is framing, not a shaming action — tapping it carries no real penalty, so making it a real, equally-weighted choice (rather than avoiding the literal word) still fits the app’s dry, forgiving voice.
 
 End ritual examples:
 
@@ -110,9 +110,9 @@ Rotate sparingly.
 
 The ready-for-set, rest/overtime, and exercise-transition screens must stay legible from 2-5 feet, phone flat on the ground or propped on a gym bag, while lifting. This does not apply to Setup, History, Settings, or the post-workout completion review — those are read up close, standing still.
 
-- Exercise name, target weight, per-side weight, the current instruction ("Begin Set N of M now."), the rest timer, and Set Done must all be sized for a glance from a few feet away, not arm's length.
-- Per-side weight and any load-difference instruction ("Add/Remove N per side") are promoted to full contrast and a large size — they're actionable, not secondary, even though they were historically styled as muted context.
-- Not everything gets bigger. Exercise counters ("Exercise 2 of 5"), target reps, and Undo/End Workout stay small and muted on purpose — the hierarchy depends on a handful of things being large and the rest receding, not on uniform enlargement.
+- Exercise name, per-side weight, the current instruction ("Begin Set N of M now."), the rest timer, and Set Done must all be sized for a glance from a few feet away, not arm's length.
+- Per-side weight (not total/target weight) is the single dominant number on these screens — it's the actionable figure at the rack. Total weight is demoted to a small "bar + side × 2 = total" breakdown line underneath, in supporting/muted styling. On the exercise-transition screen specifically, the add/remove load-difference instruction takes the dominant slot instead, since it's the more actionable figure there.
+- Not everything gets bigger. Exercise counters ("Exercise 2 of 5"), target reps, the bar/total breakdown line, and Undo/End Workout stay small and muted on purpose — the hierarchy depends on a handful of things being large and the rest receding, not on uniform enlargement.
 - All numeric values on these screens (weight, set count, timer) use tabular numerals so digits don't shift width as they change.
 - A screen change on these three screens must always start scrolled to the top.
 

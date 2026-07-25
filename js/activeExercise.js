@@ -1,5 +1,5 @@
 import { undoLastSet, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
-import { formatPerSideText } from './loadCalculations.js';
+import { weightDisplayMarkup } from './loadCalculations.js';
 import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.js';
 import { acquireWakeLock } from './wakeLock.js';
 
@@ -20,8 +20,7 @@ export function renderActiveExercise(root, session, settings, { onSessionEnded, 
     <main class="active-exercise">
       <p class="muted">Exercise ${index + 1} of ${session.exerciseResults.length}</p>
       <h1>${exercise.name}</h1>
-      <p class="target-weight">${exercise.targetWeight} ${settings.units}</p>
-      <p class="per-side-text">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
+      ${weightDisplayMarkup(exercise.targetWeight, exercise.barWeight, settings.units)}
       <p class="set-status">Begin Set ${nextSetNumber} of ${exercise.targetSets} now.</p>
       <p class="muted">Target: ${exercise.targetReps} reps</p>
 

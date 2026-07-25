@@ -9,13 +9,16 @@ export function setRecordingMarkup(exercise) {
   return `
     <div class="stacked-actions">
       <button id="set-done-btn" class="set-done-action">Set Done</button>
-      <button id="partial-btn" class="secondary-action">Partial / Failed Set</button>
+      <button id="partial-btn" class="secondary-action">Partial Set</button>
     </div>
     <p class="error" id="set-done-error" hidden></p>
     <div id="partial-panel" class="discard-panel" hidden>
-      <label>Reps completed (0–${exercise.targetReps})
+      <label for="partial-reps">Reps completed (0–${exercise.targetReps})</label>
+      <div class="rep-stepper">
+        <button type="button" id="rep-decrement" class="rep-stepper-btn" aria-label="Decrease reps">&minus;</button>
         <input type="number" id="partial-reps" min="0" max="${exercise.targetReps}" step="1" value="${exercise.targetReps}">
-      </label>
+        <button type="button" id="rep-increment" class="rep-stepper-btn" aria-label="Increase reps">+</button>
+      </div>
       <p class="error" id="partial-error" hidden></p>
       <div class="step-actions">
         <button id="partial-cancel" class="secondary-action">Cancel</button>
@@ -54,6 +57,17 @@ export function attachSetRecordingHandlers(session, index, exercise, rerender) {
   });
   document.getElementById('partial-cancel').addEventListener('click', () => {
     document.getElementById('partial-panel').hidden = true;
+  });
+
+  // Stepper buttons avoid the keyboard for the common case; the input
+  // itself stays tappable/typable as a fallback for a big jump.
+  document.getElementById('rep-decrement').addEventListener('click', () => {
+    const input = document.getElementById('partial-reps');
+    input.value = Math.max(0, (parseInt(input.value, 10) || 0) - 1);
+  });
+  document.getElementById('rep-increment').addEventListener('click', () => {
+    const input = document.getElementById('partial-reps');
+    input.value = Math.min(exercise.targetReps, (parseInt(input.value, 10) || 0) + 1);
   });
   document.getElementById('partial-confirm').addEventListener('click', async (e) => {
     const input = document.getElementById('partial-reps');

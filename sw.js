@@ -1,7 +1,7 @@
 // Bump this whenever any precached file changes — it's the only thing that
 // forces stale caches to be replaced, since there's no build step to hash
 // filenames (spec: fully offline-capable after first load).
-const CACHE_VERSION = 'lift-or-die-v3';
+const CACHE_VERSION = 'lift-or-die-v4';
 
 const PRECACHE_URLS = [
   './',
@@ -11,7 +11,6 @@ const PRECACHE_URLS = [
   './js/activeExercise.js',
   './js/app.js',
   './js/audio.js',
-  './js/dailyVote.js',
   './js/db.js',
   './js/exerciseTransition.js',
   './js/history.js',
