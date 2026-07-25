@@ -6,6 +6,7 @@ import { getActiveSession, endWorkoutControlMarkup, attachEndWorkoutHandlers } f
 import { renderWorkoutScreen } from './workoutScreen.js';
 import { renderHistoryList } from './history.js';
 import { renderSettings } from './settings.js';
+import { releaseWakeLock } from './wakeLock.js';
 
 const root = document.getElementById('app');
 
@@ -40,6 +41,11 @@ function formatDate(iso) {
 // (and, via Settings in a later slice, anything else), and Home is exactly
 // the screen that display-reflects that mutation immediately afterward.
 async function renderHome(overrideType) {
+  // Home is reachable only once an active workout has ended (Discard, Save
+  // as Incomplete, Complete Workout) or the user has stepped away from it via
+  // History/Settings — either way, the screen wake lock from the recording
+  // screens is no longer wanted.
+  releaseWakeLock();
   const settings = await getRecord(STORES.appSettings.name, 'settings');
   const activeSession = await getActiveSession();
   const mostRecentCompleted = await getMostRecentCompletedWorkout();

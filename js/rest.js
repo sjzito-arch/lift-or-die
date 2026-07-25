@@ -3,6 +3,7 @@ import { formatPerSideText } from './loadCalculations.js';
 import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.js';
 import { playChime } from './audio.js';
 import { pickNextCard } from './restCards.js';
+import { acquireWakeLock } from './wakeLock.js';
 
 function formatCountdown(msRemaining) {
   const totalSeconds = Math.round(msRemaining / 1000);
@@ -23,6 +24,7 @@ function formatCountdown(msRemaining) {
 // they're hidden; Set Done / Partial are exposed right here instead, so the
 // lifter can record the next set the moment it's done.
 export function renderRestScreen(root, session, settings, { onSessionEnded, rerender }) {
+  acquireWakeLock();
   const index = session.activeExerciseIndex ?? 0;
   const exercise = session.exerciseResults[index];
   const restEndsAtMs = new Date(exercise.restEndsAt).getTime();
@@ -35,7 +37,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
       <p class="muted">Exercise ${index + 1} of ${session.exerciseResults.length}</p>
       <h1>${exercise.name}</h1>
       <p class="target-weight">${exercise.targetWeight} ${settings.units}</p>
-      <p class="muted">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
+      <p class="per-side-text">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
       <p class="rest-timer" id="rest-timer">${formatCountdown(restEndsAtMs - Date.now())}</p>
       <p class="rest-overtime-text" id="rest-overtime-text" hidden></p>
 
@@ -44,7 +46,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
         <button type="button" id="next-tip-btn" class="tertiary-action">Next Tip</button>
       </div>
 
-      <p class="set-status">Set ${setsRecorded} done. Ready for Set ${nextSetNumber} of ${exercise.targetSets}.</p>
+      <p class="set-status">Begin Set ${nextSetNumber} of ${exercise.targetSets} now.</p>
       <p class="error" id="rest-error" hidden></p>
 
       <div id="set-recording-block" hidden>

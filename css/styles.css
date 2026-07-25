@@ -173,6 +173,12 @@ button {
   margin: 4px 0 12px;
 }
 
+.per-side-text {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 4px 0;
+}
+
 .set-status {
   font-size: 1.2rem;
   font-weight: 600;
@@ -188,6 +194,46 @@ button {
   font-weight: 700;
 }
 
+/* Distance readability (recording screens only — spec: readable from 2-5
+   feet, phone flat on the ground/bag, while lifting). Deliberately scoped to
+   these three wrapper classes so setup/history/settings/completion, which
+   don't share this requirement, are untouched. */
+.active-exercise h1,
+.rest-screen h1,
+.exercise-transition h1 {
+  font-size: 3rem;
+  line-height: 1.15;
+}
+
+.active-exercise .target-weight,
+.rest-screen .target-weight,
+.exercise-transition .target-weight {
+  font-size: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.active-exercise .per-side-text,
+.rest-screen .per-side-text,
+.exercise-transition .per-side-text {
+  font-size: 1.75rem;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.active-exercise .set-status,
+.rest-screen .set-status,
+.exercise-transition .set-status {
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: 20px;
+}
+
+.active-exercise .set-done-action,
+.rest-screen .set-done-action {
+  min-height: 120px;
+  font-size: 2.25rem;
+}
+
 .end-workout-choices {
   display: flex;
   flex-direction: column;
@@ -195,7 +241,7 @@ button {
 }
 
 .rest-timer {
-  font-size: 4rem;
+  font-size: 6.5rem;
   font-weight: 700;
   text-align: center;
   margin: 20px 0 4px;
@@ -237,7 +283,7 @@ button {
 
 .exercise-transition h2 {
   margin-top: 24px;
-  font-size: 1.2rem;
+  font-size: 2.25rem;
 }
 
 .error {

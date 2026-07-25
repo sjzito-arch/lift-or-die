@@ -7,6 +7,7 @@ import {
 } from './session.js';
 import { formatPerSideText, computeLoadDifferenceText } from './loadCalculations.js';
 import { formatSetSummary, formatResultText } from './statsCalculations.js';
+import { acquireWakeLock } from './wakeLock.js';
 
 // Exercise transition (spec §9): summary of the just-finished exercise, the
 // next exercise's target/per-side load, and the per-side difference between
@@ -14,6 +15,7 @@ import { formatSetSummary, formatResultText } from './statsCalculations.js';
 // The dispatcher only calls this for a non-final exercise; the final one
 // goes to the workout completion review instead (workoutCompletion.js).
 export function renderExerciseCompleteScreen(root, session, settings, { onSessionEnded, rerender }) {
+  acquireWakeLock();
   const index = session.activeExerciseIndex ?? 0;
   const exercise = session.exerciseResults[index];
   const nextExercise = session.exerciseResults[index + 1];
@@ -35,8 +37,8 @@ export function renderExerciseCompleteScreen(root, session, settings, { onSessio
 
       <h2>Next: ${nextExercise.name}</h2>
       <p class="target-weight">${nextExercise.targetWeight} ${settings.units}</p>
-      <p class="muted">${formatPerSideText(nextExercise.targetWeight, nextExercise.barWeight, settings.units)}</p>
-      <p class="muted">${diffText}</p>
+      <p class="per-side-text">${formatPerSideText(nextExercise.targetWeight, nextExercise.barWeight, settings.units)}</p>
+      <p class="per-side-text">${diffText}</p>
       <p class="error" id="next-error" hidden></p>
 
       <div class="stacked-actions">

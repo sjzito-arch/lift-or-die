@@ -1,5 +1,13 @@
 # Changelog
 
+## Distance readability pass — recording screens — 2026-07-25
+
+- **Scroll-to-top on every workout screen (`js/workoutScreen.js`):** replacing `root.innerHTML` doesn't reset scroll on its own — a screen shorter than wherever the previous one was scrolled to used to render already scrolled past its own top. Fixed for all four workout screens in the one shared dispatcher.
+- **Direct, shorter status wording:** the rest screen's "Set N done. Ready for Set M of X." and the ready screen's "Ready for Set N of M" both became `Begin Set N of M now.` — consistent tone, no past-tense recap.
+- **Distance-readability sizing**, scoped to the ready-for-set, rest/overtime, and exercise-transition screens only (Setup/History/Settings/completion review are unaffected, confirmed by spot-checking their computed sizes): exercise name, target weight, per-side weight, the current instruction, Set Done, and the rest timer are all substantially larger — meant to be readable from 2-5 feet with the phone flat on the ground or a gym bag. Per-side weight and the exercise-transition's load-difference text are promoted out of muted/secondary styling since they're actionable, not just context. Documented as a standing design principle in the Style Guide.
+- **Screen Wake Lock (`js/wakeLock.js`, ADR-022):** the screen no longer auto-locks during rest, when the phone is typically untouched. Feature-detected, silently no-ops where unsupported, never blocks recording a set if the request fails.
+- Verified end-to-end: computed sizes match the intended values on all three recording screens and are unchanged on the completion screen; wording confirmed at Set 1 and after a rest period; scroll position resets to 0 on every workout-screen transition; wake lock request fires without throwing and a sentinel is obtained where supported. Full background/foreground wake-lock behavior needs a real device — noted for the product owner's own gym test.
+
 ## Pre-acceptance review fixes — 2026-07-25
 
 - **History date/time editing now uses local time, not UTC (ADR-021):** the edit screen's date/time inputs previously rendered via `toISOString()`, which shows and would silently re-save the wrong wall-clock time for anyone not at UTC+0. They now build from the `Date` object's local getters. Editing the date/time also now shifts `endedAt` by the same amount `startedAt` moved, so `durationSeconds` stays accurate — previously `endedAt` was never touched by an edit at all. Verified with a workout seeded at a known local time under a real non-zero UTC offset: edit fields showed the correct local values, and shifting the date moved both timestamps by an identical delta with duration unchanged.

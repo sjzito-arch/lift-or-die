@@ -1,6 +1,7 @@
 import { undoLastSet, endWorkoutControlMarkup, attachEndWorkoutHandlers } from './session.js';
 import { formatPerSideText } from './loadCalculations.js';
 import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.js';
+import { acquireWakeLock } from './wakeLock.js';
 
 // The "ready for a set" screen (spec §7), scoped to Set Done, partial-set
 // entry, and undo. The dispatcher in workoutScreen.js only calls this when
@@ -8,6 +9,7 @@ import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.j
 // (including the post-expiry overtime state), exercise-complete, and
 // all-done are separate screens.
 export function renderActiveExercise(root, session, settings, { onSessionEnded, rerender }) {
+  acquireWakeLock();
   const index = session.activeExerciseIndex ?? 0;
   const exercise = session.exerciseResults[index];
   const setsRecorded = exercise.setResults.length;
@@ -19,8 +21,8 @@ export function renderActiveExercise(root, session, settings, { onSessionEnded, 
       <p class="muted">Exercise ${index + 1} of ${session.exerciseResults.length}</p>
       <h1>${exercise.name}</h1>
       <p class="target-weight">${exercise.targetWeight} ${settings.units}</p>
-      <p class="muted">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
-      <p class="set-status">Ready for Set ${nextSetNumber} of ${exercise.targetSets}</p>
+      <p class="per-side-text">${formatPerSideText(exercise.targetWeight, exercise.barWeight, settings.units)}</p>
+      <p class="set-status">Begin Set ${nextSetNumber} of ${exercise.targetSets} now.</p>
       <p class="muted">Target: ${exercise.targetReps} reps</p>
 
       ${setRecordingMarkup(exercise)}

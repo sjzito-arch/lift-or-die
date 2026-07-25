@@ -23,17 +23,16 @@ export function renderWorkoutScreen(root, session, settings, callbacks) {
 
   if (isResting) {
     renderRestScreen(root, session, settings, screenCallbacks);
-    return;
-  }
-
-  if (!isExerciseComplete) {
+  } else if (!isExerciseComplete) {
     renderActiveExercise(root, session, settings, screenCallbacks);
-    return;
-  }
-
-  if (isLastExercise) {
+  } else if (isLastExercise) {
     renderWorkoutCompletionScreen(root, session, settings, screenCallbacks);
   } else {
     renderExerciseCompleteScreen(root, session, settings, screenCallbacks);
   }
+
+  // Replacing root.innerHTML doesn't reset scroll position on its own — left
+  // uncorrected, a screen shorter than wherever the previous one was
+  // scrolled to renders with its top already scrolled past.
+  window.scrollTo(0, 0);
 }

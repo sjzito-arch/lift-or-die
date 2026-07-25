@@ -185,6 +185,15 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Storing `startedAt`/`endedAt` already split into date/time strings to avoid a conversion at all; rejected as a larger data-model change for a bug that a display/parsing fix already fully resolves.
 - Tradeoffs: None. Verified directly with a seeded workout at a known local time under a non-zero UTC offset: the edit fields showed the correct local values (not UTC-shifted), and editing the date shifted both `startedAt` and `endedAt` by the identical delta, leaving `durationSeconds` unchanged.
 
+## ADR-022 — Screen Wake Lock during recording screens only, feature-detected and silent on failure
+
+- Date: 2026-07-25
+- Status: Accepted
+- Decision: `js/wakeLock.js` requests a Screen Wake Lock via `navigator.wakeLock` while any of the three recording screens (ready-for-set, rest/overtime, exercise-transition) is shown, and releases it once Home renders (covering Discard, Save as Incomplete, Complete Workout, and navigating away mid-session). Feature-detected (`'wakeLock' in navigator`); any unsupported/refused/errored request is swallowed silently — losing the wake lock never blocks recording a set. A `visibilitychange` listener re-requests the lock if the app returns to the foreground while a recording screen still wants it, since the browser releases the lock automatically whenever the tab backgrounds and does not reacquire it on its own.
+- Reason: The phone typically sits untouched on the ground or a gym bag during rest — exactly the idle period iOS's auto-lock timeout would otherwise dim/lock the screen, defeating the distance-readability work in the same pass (ADR/Style-Guide addendum, same date). This is genuine new runtime behavior, not a styling change, so it was confirmed with the product owner before being added rather than folded in silently.
+- Alternatives considered: Acquiring the lock for the whole workout session (including the completion review); rejected as broader than the stated need — completion review is read up close, standing still, so there's no reason to fight the OS's normal power management there. A polyfill for pre-16.4 iOS (e.g. a silently looping muted video) to fake a wake lock; rejected as unnecessary complexity for a personal app on a phone that will run a current iOS version.
+- Tradeoffs: The request only reliably succeeds when called within a live user-activation window; if an await (e.g. a slow IndexedDB write) exhausts that window before the request fires, the request can silently fail rather than throw — the next recording-screen render (triggered by the next tap) tries again, so the lock typically does still engage within a set or two even if a given attempt misses. Battery drains faster while the lock is held; acceptable for the duration of one workout. Full background/foreground behavior needs verification on a real device — flagged for the product owner's own gym test rather than assumed from browser-based testing.
+
 ## New entry template
 
 ```markdown
