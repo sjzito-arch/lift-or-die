@@ -16,12 +16,21 @@ function formatDuration(totalSeconds) {
   return `${m}m ${s}s`;
 }
 
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+// Local components, not `toISOString()` — that renders in UTC, which shows
+// (and, if left untouched, would silently re-save) the wrong wall-clock time
+// for any user not at UTC+0.
 function dateInputValue(iso) {
-  return new Date(iso).toISOString().slice(0, 10);
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 function timeInputValue(iso) {
-  return new Date(iso).toISOString().slice(11, 16);
+  const d = new Date(iso);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 async function getSortedWorkouts() {
@@ -339,9 +348,16 @@ function renderHistoryEdit(root, workout, settings, { onBack }) {
       updatedExerciseResults.push(updatedExercise);
     }
 
+    // Shift endedAt by the same amount startedAt moved, so duration (and any
+    // other endedAt-derived display) stays internally consistent — this is
+    // an edit to when the workout happened, not to how long it lasted.
+    const deltaMs = newStartedAt.getTime() - new Date(workout.startedAt).getTime();
+    const newEndedAt = workout.endedAt ? new Date(new Date(workout.endedAt).getTime() + deltaMs).toISOString() : workout.endedAt;
+
     const updatedWorkout = {
       ...workout,
       startedAt: newStartedAt.toISOString(),
+      endedAt: newEndedAt,
       exerciseResults: updatedExerciseResults,
       updatedAt: new Date().toISOString(),
     };

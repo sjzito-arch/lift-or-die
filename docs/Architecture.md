@@ -167,6 +167,24 @@ This is a living record, not a speculative design essay. Add entries only for de
 - Alternatives considered: Network-first with cache fallback; rejected because it would make every normal (online) load wait on the network for no benefit, for an app with no dynamic server content to prefer. A build-time content-hash/versioning tool; rejected as a new dependency this project's minimal-dependency policy doesn't justify for a one-developer static file list of ~25 files.
 - Tradeoffs: Forgetting to bump `CACHE_VERSION` after editing a precached file means the old cached copy keeps being served until the version string changes — an accepted manual step, not automated, consistent with the no-build-step constraint.
 
+## ADR-020 — Settings Save is one atomic transaction across all three affected stores
+
+- Date: 2026-07-25
+- Status: Accepted
+- Decision: `js/settings.js`'s Save handler now writes `appSettings`, every touched `exerciseConfigs` record, and both `workoutTemplates` records inside a single `runAtomicTransaction` call, replacing the previous sequence of independent `putRecord` calls (one transaction per record).
+- Reason: A review finding correctly identified that a failure partway through the old sequential writes (e.g. the 4th of 5 exercise saves) would leave settings and the first few exercises already committed while the rest weren't — a genuinely inconsistent state, and a direct violation of "a failure must leave all prior settings unchanged." `runAtomicTransaction` already existed (ADR-013, hardened by ADR-016) for exactly this all-or-nothing guarantee; Settings Save simply hadn't been switched to use it when Slice 7 was built.
+- Alternatives considered: Manual rollback logic that re-writes the pre-edit values for anything already committed if a later `putRecord` fails; rejected as strictly more code than reusing the existing atomic-transaction helper, and less reliable — a rollback write can itself fail.
+- Tradeoffs: None. Verified directly: forcing a throw on the write for one exercise (with several earlier stores/records already queued in the same transaction) left every store — settings, all exercise configs, both templates — completely unchanged; a subsequent unpatched Save with the same edits committed all of them correctly.
+
+## ADR-021 — History edit date/time fields read and write local time, not UTC
+
+- Date: 2026-07-25
+- Status: Accepted
+- Decision: `dateInputValue`/`timeInputValue` in `js/history.js` now build the `<input type="date">`/`<input type="time">` values from the `Date` object's local getters (`getFullYear`/`getMonth`/`getDate`/`getHours`/`getMinutes`), not `toISOString()`. Saving also now shifts `endedAt` by the same delta `startedAt` moved, so duration stays internally consistent after a date/time edit.
+- Reason: A review finding correctly identified that `toISOString()` renders in UTC, so anyone not at UTC+0 would see (and, if they saved without correcting it, silently re-save) the wrong wall-clock time — a real, silent data-corrupting bug on every edit that didn't deliberately re-enter the exact right local values. Separately, `endedAt` was never touched by the edit at all, so an edited `startedAt` would leave `durationSeconds`/`endedAt` describing a different, now-inconsistent span.
+- Alternatives considered: Storing `startedAt`/`endedAt` already split into date/time strings to avoid a conversion at all; rejected as a larger data-model change for a bug that a display/parsing fix already fully resolves.
+- Tradeoffs: None. Verified directly with a seeded workout at a known local time under a non-zero UTC offset: the edit fields showed the correct local values (not UTC-shifted), and editing the date shifted both `startedAt` and `endedAt` by the identical delta, leaving `durationSeconds` unchanged.
+
 ## New entry template
 
 ```markdown

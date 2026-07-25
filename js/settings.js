@@ -1,4 +1,4 @@
-import { getRecord, putRecord, resetAllData } from './db.js';
+import { getRecord, runAtomicTransaction, resetAllData } from './db.js';
 import { STORES, EXERCISE_ORDER, CARD_CATEGORIES } from './schema.js';
 
 function renderToggleCheckboxes(toggles) {
@@ -252,22 +252,30 @@ export async function renderSettings(root, { onBack }) {
       });
     }
 
+    // One atomic transaction across all three affected stores: a failure
+    // partway through (e.g. the 3rd of 5 exercise writes) must not leave
+    // settings or some exercises updated while others aren't.
     try {
-      await putRecord(STORES.appSettings.name, {
-        ...settings,
-        units: document.getElementById('set-units').value,
-        programStartDate,
-        humorLevel: document.getElementById('set-humor-level').value,
-        motivation: document.getElementById('set-motivation').value.trim(),
-        globalDefaultBarWeight: globalBar,
-        globalDefaultRestSeconds: globalRest,
-        cardCategoryToggles: toggles,
-      });
-      for (const ex of updatedExercises) {
-        await putRecord(STORES.exerciseConfigs.name, ex);
-      }
-      await putRecord(STORES.workoutTemplates.name, { ...templateA, exerciseIds: orderA });
-      await putRecord(STORES.workoutTemplates.name, { ...templateB, exerciseIds: orderB });
+      await runAtomicTransaction(
+        [STORES.appSettings.name, STORES.exerciseConfigs.name, STORES.workoutTemplates.name],
+        (stores) => {
+          stores[STORES.appSettings.name].put({
+            ...settings,
+            units: document.getElementById('set-units').value,
+            programStartDate,
+            humorLevel: document.getElementById('set-humor-level').value,
+            motivation: document.getElementById('set-motivation').value.trim(),
+            globalDefaultBarWeight: globalBar,
+            globalDefaultRestSeconds: globalRest,
+            cardCategoryToggles: toggles,
+          });
+          for (const ex of updatedExercises) {
+            stores[STORES.exerciseConfigs.name].put(ex);
+          }
+          stores[STORES.workoutTemplates.name].put({ ...templateA, exerciseIds: orderA });
+          stores[STORES.workoutTemplates.name].put({ ...templateB, exerciseIds: orderB });
+        }
+      );
       dirty = false;
       onBack();
     } catch (err) {

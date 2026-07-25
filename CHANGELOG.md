@@ -1,6 +1,11 @@
 # Changelog
 
-## Slice 9 — Manifest, service worker, offline, installability — 2026-07-23
+## Pre-acceptance review fixes — 2026-07-25
+
+- **History date/time editing now uses local time, not UTC (ADR-021):** the edit screen's date/time inputs previously rendered via `toISOString()`, which shows and would silently re-save the wrong wall-clock time for anyone not at UTC+0. They now build from the `Date` object's local getters. Editing the date/time also now shifts `endedAt` by the same amount `startedAt` moved, so `durationSeconds` stays accurate — previously `endedAt` was never touched by an edit at all. Verified with a workout seeded at a known local time under a real non-zero UTC offset: edit fields showed the correct local values, and shifting the date moved both timestamps by an identical delta with duration unchanged.
+- **Settings Save is now one atomic transaction (ADR-020):** previously `appSettings`, each `exerciseConfigs` record, and both `workoutTemplates` records were written as independent sequential `putRecord` calls, so a failure partway through could leave some already committed and others not. Save now uses the existing `runAtomicTransaction` helper across all three stores. Verified by forcing a failure on one exercise write mid-transaction: every store — settings, every exercise, both templates — was confirmed completely unchanged afterward; a subsequent unpatched Save committed all the intended changes correctly.
+- Bumped the service worker's `CACHE_VERSION` (`sw.js`) since both fixes touch precached files — without this, an already-installed copy would keep serving the old, buggy JS from cache indefinitely.
+- No other behavior changed.
 
 - **Icons:** hand-authored on-brand SVG barbell glyph (dark background, orange bar/plates matching the existing palette), rasterized to PNG via macOS's built-in `sips` (no new dependency) at 512×512, 192×192, 180×180 (`apple-touch-icon`), and 32×32 (favicon).
 - **`manifest.json`:** name, short name, standalone display, portrait orientation, theme/background color matching `--color-bg`, and both icon sizes. `index.html`'s `<head>` gained the manifest link, favicon, `apple-touch-icon`, `theme-color`, and `apple-mobile-web-app-*` meta tags for iOS Home Screen install.

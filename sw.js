@@ -1,7 +1,7 @@
 // Bump this whenever any precached file changes — it's the only thing that
 // forces stale caches to be replaced, since there's no build step to hash
 // filenames (spec: fully offline-capable after first load).
-const CACHE_VERSION = 'lift-or-die-v1';
+const CACHE_VERSION = 'lift-or-die-v2';
 
 const PRECACHE_URLS = [
   './',
