@@ -236,11 +236,14 @@ export async function markCardShown(session, entry) {
 }
 
 // A session created before this content-history rework may still have a
-// handful of legacy bare-string entries in `shownCardKeys` if it was already
-// in progress across the update — normalize those to their own family so
-// exclusion logic never has to special-case the shape.
+// handful of legacy entries in `shownCardKeys` — a bare string (pre-family)
+// or an object missing `dynamic` (pre-value-keying). Normalized to
+// `dynamic: false` in both cases so exclusion logic (restCards.js) never has
+// to special-case the shape; that's the conservative default (family-based
+// exclusion), not a guess at whether the original content was dynamic.
 function normalizeContentEntry(entry) {
-  return typeof entry === 'string' ? { key: entry, family: entry } : entry;
+  if (typeof entry === 'string') return { key: entry, family: entry, dynamic: false };
+  return { key: entry.key, family: entry.family, dynamic: entry.dynamic ?? false };
 }
 
 export async function advanceToNextExercise(session) {

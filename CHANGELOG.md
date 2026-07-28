@@ -1,5 +1,14 @@
 # Changelog
 
+## Fix content-repetition defects: dynamic exclusion, headline weighting — 2026-07-27
+
+Corrective fixes to two defects found in the MVP refinement build (below), both in `js/restCards.js`.
+
+- **Dynamic content was wrongly blocked by family across workouts (ADR-030):** every content candidate now carries an explicit `dynamic` flag. Cross-workout (and within-workout) exclusion for dynamic content — progress cards, original-vs-current weight cards, the upcoming-exercise card — now checks its exact `key` only, never its `family`. Static content (technique cues, general/humor/recovery lines) is unaffected and still excluded by family as before. `dynamic` is persisted alongside `key`/`family` in `session.shownCardKeys` and `StoredWorkout.contentHistory`; legacy entries missing it default to `false` (the old, conservative behavior), so existing history keeps working.
+- **Completion-headline selection was never actually random (ADR-031):** `pickCompletionHeadline` passed `buildHumorCards()`'s output straight into the shared picker without a `weight`, making the total/roll arithmetic `NaN` and silently falling through to the pool's last item every time. Fixed at the call site (explicit equal weight) and, independently, in the shared picker itself (`safeWeight()` now defends against any missing/invalid weight from any future caller).
+- Verified directly: an identical dynamic value (unchanged vote count) stayed excluded across a simulated 3-completed-workout history; a changed value (vote count +1) correctly became eligible; static family exclusion (a "barbell complaint" family member) was unaffected; 25 headline draws against a full pool produced 8 distinct results, not the same one every time; empty/humor-off pools still correctly returned no content; a real end-to-end workout (rest cards → completion → headline → History) showed no console errors and the persisted `contentHistory` correctly recorded `dynamic` per entry.
+- `sw.js` `CACHE_VERSION` bumped to `v6`.
+
 ## MVP refinement build — set progression, transition detail, Easy result, content variety — 2026-07-27
 
 - **Shared set-progression renderer (`js/setProgression.js`, ADR-026):** one implementation of the check/rep-count/current/future row, used identically on active exercise, rest, exercise-transition, workout completion, and History detail — replacing the completion-only chip markup and History's plain-text set summary. Current/future boxes differ in fill weight as well as tone (never color-only), carry accessible labels, and never show a number. Handles Deadlift's 1-set exercise correctly (no hardcoded 5).

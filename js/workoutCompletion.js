@@ -142,7 +142,7 @@ export function renderWorkoutCompletionScreen(root, session, settings, { onSessi
       // own fresh read carries that into the stored workout's history.
       const headline = await pickCompletionHeadline(session, settings);
       if (headline) {
-        await markCardShown(session, { key: headline.key, family: headline.family });
+        await markCardShown(session, { key: headline.key, family: headline.family, dynamic: headline.dynamic });
       }
       const storedWorkout = await completeWorkout(session, submittedOverrides);
       manualOverridesBySession.delete(session.id);

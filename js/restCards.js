@@ -84,11 +84,12 @@ function buildRecoveryCards() {
   return RECOVERY_LINES.map((item, i) => ({ key: `recovery:${i}`, family: item.family, category: 'recovery', text: item.text }));
 }
 
-// Value-keyed: the next exercise's actual load can differ meaningfully
-// workout to workout even though the sentence template is the same, so the
-// key includes the real numbers — a genuinely different load is treated as
-// fresh content, not a repeat, while the family still ties every "upcoming"
-// card for this exercise together for within-workout variety.
+// Value-keyed AND marked `dynamic: true` — the next exercise's actual load
+// can differ meaningfully workout to workout even though the sentence
+// template is the same. `dynamic` tells the exclusion logic (below) to
+// exclude this by its exact key only, never by `family` — `family` here just
+// groups "upcoming card for this exercise" for readability/debugging, and
+// must never be used to block a genuinely different load from showing.
 function buildUpcomingCard(session, index, settings) {
   const nextExercise = session.exerciseResults[index + 1];
   if (!nextExercise) return [];
@@ -104,31 +105,33 @@ function buildUpcomingCard(session, index, settings) {
     key: `upcoming:${nextExercise.exerciseId}:${nextExercise.targetWeight}:${nextExercise.barWeight}`,
     family: `upcoming:${nextExercise.exerciseId}`,
     category: 'upcoming',
+    dynamic: true,
     text: `Next up: ${nextExercise.name} — ${nextExercise.targetWeight} ${settings.units} (${perSide}). ${diff}`,
   }];
 }
 
-// Also value-keyed for the same reason: "3 workouts in the last 30 days" is
+// Also value-keyed and `dynamic: true` — "3 workouts in the last 30 days" is
 // meaningfully different content from "5 workouts in the last 30 days," even
-// though it's produced by the same template.
+// though it's produced by the same template, so it must be excluded by its
+// exact key only (see the `dynamic` note above `buildUpcomingCard`).
 async function buildProgressCards(settings) {
   const workouts = await getAllRecords(STORES.storedWorkouts.name);
   const completed = workouts.filter((w) => w.status === 'completed');
   const cards = [];
 
   const votes = settings.lifetimeVotes ?? 0;
-  cards.push({ key: `progress:votes:${votes}`, family: 'progress:votes', category: 'personalProgress', text: `Lifetime votes for Future You: ${votes}.` });
-  cards.push({ key: `progress:total:${workouts.length}`, family: 'progress:total', category: 'personalProgress', text: `Total workouts logged: ${workouts.length}.` });
+  cards.push({ key: `progress:votes:${votes}`, family: 'progress:votes', category: 'personalProgress', dynamic: true, text: `Lifetime votes for Future You: ${votes}.` });
+  cards.push({ key: `progress:total:${workouts.length}`, family: 'progress:total', category: 'personalProgress', dynamic: true, text: `Total workouts logged: ${workouts.length}.` });
 
   if (completed.length > 0) {
     const sorted = [...completed].sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
     const daysSince = Math.round((Date.now() - new Date(sorted[0].startedAt).getTime()) / 86400000);
     if (daysSince > 0) {
-      cards.push({ key: `progress:daysSince:${daysSince}`, family: 'progress:daysSince', category: 'personalProgress', text: `${daysSince} day${daysSince === 1 ? '' : 's'} since your last workout.` });
+      cards.push({ key: `progress:daysSince:${daysSince}`, family: 'progress:daysSince', category: 'personalProgress', dynamic: true, text: `${daysSince} day${daysSince === 1 ? '' : 's'} since your last workout.` });
     }
     const thirtyDaysAgo = Date.now() - 30 * 86400000;
     const recentCount = completed.filter((w) => new Date(w.startedAt).getTime() >= thirtyDaysAgo).length;
-    cards.push({ key: `progress:recent30:${recentCount}`, family: 'progress:recent30', category: 'personalProgress', text: `${recentCount} workout${recentCount === 1 ? '' : 's'} in the last 30 days.` });
+    cards.push({ key: `progress:recent30:${recentCount}`, family: 'progress:recent30', category: 'personalProgress', dynamic: true, text: `${recentCount} workout${recentCount === 1 ? '' : 's'} in the last 30 days.` });
   }
 
   return cards;
@@ -142,22 +145,31 @@ async function buildOriginalVsCurrentCards() {
       key: `progress:original:${ex.id}:${ex.originalWeight}:${ex.currentWeight}`,
       family: `progress:original:${ex.id}`,
       category: 'personalProgress',
+      dynamic: true,
       text: `${ex.name}: up from ${ex.originalWeight} to ${ex.currentWeight} since you started.`,
     }));
 }
 
-// A session created before this rework may still carry a few legacy
-// bare-string entries in `shownCardKeys` — normalize to their own family so
-// the exclusion checks below never have to special-case the shape.
+// A session (or older stored workout) created before this rework may still
+// carry legacy entries — a bare string (pre-family), or an object missing
+// `dynamic` (pre-value-keying). Both normalize to `dynamic: false`, which is
+// the conservative choice: it preserves the old, slightly-more-aggressive
+// family-based exclusion for pre-existing history rather than guessing, and
+// resolves itself naturally as those entries age out of the 3-workout window.
 function normalizeEntry(entry) {
-  return typeof entry === 'string' ? { key: entry, family: entry } : entry;
+  if (typeof entry === 'string') return { key: entry, family: entry, dynamic: false };
+  return { key: entry.key, family: entry.family, dynamic: entry.dynamic ?? false };
 }
 
 // The last 3 *completed* workouts' content history, expanded into the set of
-// keys/families that must be excluded now (spec addendum: "avoid repeating
-// it during the next three completed workouts"). Read fresh each time a pick
-// is needed — this app's history is small enough that this is cheap, and it
-// avoids caching anything that could go stale mid-workout.
+// keys/families that must be excluded now. Static entries contribute both
+// their key and family (so a whole joke family stays capped across
+// workouts); dynamic entries contribute only their key (so an identical
+// repeated value is blocked, but a meaningfully different value — a new vote
+// count, a new working weight, a new upcoming load — is never blocked just
+// because it shares a family with an old, different value). Read fresh each
+// time a pick is needed — this app's history is small enough that this is
+// cheap, and it avoids caching anything that could go stale mid-workout.
 async function buildHistoricalExclusions() {
   const workouts = await getAllRecords(STORES.storedWorkouts.name);
   const completed = workouts
@@ -171,39 +183,54 @@ async function buildHistoricalExclusions() {
     for (const rawEntry of w.contentHistory ?? []) {
       const entry = normalizeEntry(rawEntry);
       excludedKeys.add(entry.key);
-      excludedFamilies.add(entry.family);
+      if (!entry.dynamic) {
+        excludedFamilies.add(entry.family);
+      }
     }
   }
   return { excludedKeys, excludedFamilies };
 }
 
-// Shared selection: excludes anything already shown this workout (by key or
-// family) and anything excluded by the last 3 completed workouts' history,
-// then weighted-picks one survivor. Returns null — show nothing — rather
-// than falling back to a repeat once the eligible pool is empty; that
-// "graceful exhaustion" is now a real possibility given the exclusion rules,
-// not just a theoretical edge case (spec addendum: "show no optional card or
-// headline rather than repeat one").
+// A candidate's own weight, defended against a missing/invalid value so a
+// builder that forgets to set one can't silently corrupt the whole
+// selection (a bad total/NaN roll previously fell through to always
+// returning the last eligible item instead of picking randomly).
+function safeWeight(card) {
+  const w = card.weight;
+  return typeof w === 'number' && Number.isFinite(w) && w > 0 ? w : 1;
+}
+
+// Shared selection: excludes anything already shown this workout and
+// anything excluded by the last 3 completed workouts' history, then
+// weighted-picks one survivor. A dynamic candidate is only ever excluded by
+// its own exact key (never its family) — see `buildHistoricalExclusions`.
+// Returns null — show nothing — rather than falling back to a repeat once
+// the eligible pool is empty; that "graceful exhaustion" is now a real
+// possibility given the exclusion rules, not just a theoretical edge case
+// (spec addendum: "show no optional card or headline rather than repeat one").
 function pickFromPool(pool, shownEntriesThisWorkout, excludedKeys, excludedFamilies) {
   const shownKeys = new Set();
   const shownFamilies = new Set();
   for (const rawEntry of shownEntriesThisWorkout ?? []) {
     const entry = normalizeEntry(rawEntry);
     shownKeys.add(entry.key);
-    shownFamilies.add(entry.family);
+    if (!entry.dynamic) {
+      shownFamilies.add(entry.family);
+    }
   }
 
-  const available = pool.filter((c) =>
-    !shownKeys.has(c.key) && !shownFamilies.has(c.family) &&
-    !excludedKeys.has(c.key) && !excludedFamilies.has(c.family)
-  );
+  const available = pool.filter((c) => {
+    if (shownKeys.has(c.key) || excludedKeys.has(c.key)) return false;
+    if (!c.dynamic && (shownFamilies.has(c.family) || excludedFamilies.has(c.family))) return false;
+    return true;
+  });
 
   if (available.length === 0) return null;
 
-  const totalWeight = available.reduce((sum, c) => sum + c.weight, 0);
+  const totalWeight = available.reduce((sum, c) => sum + safeWeight(c), 0);
   let roll = Math.random() * totalWeight;
   for (const card of available) {
-    roll -= card.weight;
+    roll -= safeWeight(card);
     if (roll <= 0) return card;
   }
   return available[available.length - 1];
@@ -248,9 +275,19 @@ export async function pickNextCard(session, settings, shownEntries) {
 // as a rest card this workout (a joke can't appear twice, once as a card and
 // once as the headline) and by the last 3 completed workouts. Returns null
 // (no headline shown) if humor is off or nothing is eligible.
+//
+// Every candidate needs an explicit, equal weight (no deliberate weighting
+// rule applies here) — `buildHumorCards()` alone never sets `weight` (that's
+// normally added by `pickNextCard`'s own candidate assembly), and passing
+// weightless cards straight into `pickFromPool` previously made every
+// total/roll calculation `NaN`, which always fails the `<= 0` check and
+// silently falls through to the *last* eligible item instead of picking
+// randomly. `pickFromPool`'s own `safeWeight` fallback is a second,
+// independent safety net against the same mistake recurring for any future
+// caller that forgets to set a weight.
 export async function pickCompletionHeadline(session, settings) {
   if (settings.humorLevel === 'off') return null;
-  const pool = buildHumorCards();
+  const pool = buildHumorCards().map((c) => ({ ...c, weight: 1 }));
   const { excludedKeys, excludedFamilies } = await buildHistoricalExclusions();
   return pickFromPool(pool, session.shownCardKeys ?? [], excludedKeys, excludedFamilies);
 }

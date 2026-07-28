@@ -250,7 +250,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
     document.getElementById('rest-card-text').textContent = card.text;
     cardEl.hidden = false;
     try {
-      const updated = await markCardShown(session, { key: card.key, family: card.family });
+      const updated = await markCardShown(session, { key: card.key, family: card.family, dynamic: card.dynamic });
       session.shownCardKeys = updated.shownCardKeys;
     } catch (err) {
       // Best-effort: if this fails to persist, worst case is an occasional
