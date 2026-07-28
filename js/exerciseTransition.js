@@ -1,13 +1,15 @@
 import {
   advanceToNextExercise,
+  setExerciseEasy,
   undoControlMarkup,
   attachUndoHandler,
   endWorkoutControlMarkup,
   attachEndWorkoutHandlers,
 } from './session.js';
-import { formatLoadBreakdownText, computeLoadDifferenceText } from './loadCalculations.js';
-import { setChipsMarkup, formatResultText } from './statsCalculations.js';
+import { weightDisplayMarkup, computeLoadDifferenceText } from './loadCalculations.js';
+import { formatResultText } from './statsCalculations.js';
 import { acquireWakeLock } from './wakeLock.js';
+import { setProgressionMarkup } from './setProgression.js';
 
 // Exercise transition (spec §9): summary of the just-finished exercise, the
 // next exercise's target/per-side load, and the per-side difference between
@@ -32,12 +34,18 @@ export function renderExerciseCompleteScreen(root, session, settings, { onSessio
     <main class="exercise-transition">
       <h1>Exercise Complete</h1>
       <p class="set-status">${exercise.name} — ${exercise.targetWeight} ${settings.units}</p>
-      ${setChipsMarkup(exercise)}
+      ${setProgressionMarkup(exercise)}
       <p>${formatResultText(exercise, settings.units)}</p>
+      ${exercise.success ? `
+      <label class="checkbox-label easy-toggle">
+        <input type="checkbox" id="easy-checkbox" ${exercise.easy ? 'checked' : ''}>
+        Felt Easy
+      </label>
+      <p class="error" id="easy-error" hidden></p>` : ''}
 
       <h2>Next: ${nextExercise.name}</h2>
-      <p class="per-side-text">${diffText}</p>
-      <p class="load-breakdown">${formatLoadBreakdownText(nextExercise.targetWeight, nextExercise.barWeight, settings.units)}</p>
+      ${weightDisplayMarkup(nextExercise.targetWeight, nextExercise.barWeight, settings.units)}
+      <p class="load-breakdown">${diffText}</p>
       <p class="error" id="next-error" hidden></p>
 
       <div class="stacked-actions">
@@ -69,6 +77,25 @@ export function renderExerciseCompleteScreen(root, session, settings, { onSessio
   });
 
   attachUndoHandler(session, index, rerender);
+
+  const easyCheckbox = document.getElementById('easy-checkbox');
+  if (easyCheckbox) {
+    easyCheckbox.addEventListener('change', async (e) => {
+      const checked = e.target.checked;
+      e.target.disabled = true;
+      const errEl = document.getElementById('easy-error');
+      errEl.hidden = true;
+      try {
+        const updated = await setExerciseEasy(session, index, checked);
+        rerender(updated);
+      } catch (err) {
+        e.target.checked = !checked;
+        e.target.disabled = false;
+        errEl.textContent = 'Could not update Easy. Check your storage and try again.';
+        errEl.hidden = false;
+      }
+    });
+  }
 
   document.getElementById('end-workout-btn').addEventListener('click', () => {
     document.getElementById('end-workout-panel').hidden = false;

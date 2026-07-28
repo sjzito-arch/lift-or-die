@@ -116,9 +116,10 @@ Show one exercise at a time:
 - Exercise name.
 - Target total weight.
 - Weight to load on each side.
-- “Ready for Set N of M.”
+- “Begin set N of M now.”
 - Rep target.
 - Overall workout progress, such as “Exercise 1 of 3.”
+- A persistent set-progression row: one box per prescribed set. A completed set that met its target shows a check; a completed short set shows its actual rep count; the current set is a prominent empty box; future sets are matching but visually quieter empty boxes with no number shown. Color is never the only signal — checks, rep counts, and empty states differ in shape/fill too, each with an accessible label. One shared implementation renders this identically on active exercise, rest, exercise-transition, workout completion, and history detail.
 - One very large **Set Done** button in easy thumb reach.
 - Secondary partial-set action.
 - Small, discoverable **Undo Last Set** when applicable.
@@ -152,9 +153,10 @@ After every non-final set:
 - Provide **+30 sec**, **Skip Rest**, and **Undo Last Set**.
 - Show one rest card below the timer with **Next Tip**.
 - When zero is reached while visible, play a restrained chime/vibration exactly once, where browser permissions and iOS behavior allow.
-- Reaching zero does not auto-advance the workout and does not require a "Continue" tap. The rest screen stays visible, switches to an expired/ready visual state (e.g. green), and keeps counting elapsed time past zero as overtime, shown as a negative timer with plain text such as "Rest finished — 12 seconds over." The lifter starts the next set in their own time; the app never forces it.
+- Reaching zero does not auto-advance the workout and does not require a "Continue" tap. The rest screen stays visible, switches to an expired/ready visual state (e.g. green), and keeps counting elapsed time past zero as overtime, shown as a negative timer with the static plain text "Rest finished" (no running seconds count). The lifter starts the next set in their own time; the app never forces it.
 - Once expired, **Set Done** and the partial-set action for the upcoming set are exposed directly on this same screen, so the lifter can record the set the moment it's done without a separate screen. **Undo Last Set** and the guarded **End Workout** action remain available throughout, both before and after expiry.
 - If backgrounded or suspended, calculate the correct elapsed time on return, including correctly recomputed overtime if the countdown expired while away. V1 does not promise a background alarm.
+- If the set just recorded was short of its target and another set remains in the exercise, show a plain recommendation on the resulting rest screen: "That set fell short. Consider adding 30 seconds to this rest." This is a suggestion only — it never adds time automatically, never changes the exercise's configured rest duration, and disappears once the timer reaches zero (matching **+30 sec**/**Skip Rest**, which are no longer relevant past expiry). It never appears after a successful set, and never after an exercise's final set (no rest starts there at all).
 
 After the final set, never start a rest timer.
 
@@ -163,9 +165,10 @@ After the final set, never start a rest timer.
 After the final set:
 
 - Show **Exercise Complete**.
-- Summarize reps and weight.
-- Show the next exercise, its total target, per-side load, and per-side difference from the current exercise (add/remove/no change).
+- Summarize reps and weight, using the same set-progression row described in §7.
+- Show the next exercise's absolute per-side load (e.g. "15 lb per side") as the visually dominant figure — it's what's actually loaded on the bar, whether changing plates on the same bar or loading a fresh one from scratch — with the per-side difference from the current exercise (add/remove/no change) and the bar/total-weight breakdown as supporting, secondary information beneath it.
 - Provide a large **Next Exercise** button.
+- If the just-finished exercise met every prescribed set and rep, offer a compact, secondary **Felt Easy** control (kept visually subordinate to the primary next-exercise action). Not offered for a partial or unsuccessful exercise.
 
 After the final exercise, proceed to workout completion.
 
@@ -184,12 +187,22 @@ An exercise is successful only when every prescribed set contains at least the p
 - Editing a completed workout does not silently recalculate later workouts or current working weights. If an edit changes success status, offer an explicit, previewed correction to the current working weight; default is no downstream change.
 - Changing settings mid-workout affects future workouts only unless the user explicitly edits the active exercise target.
 
+### Easy result
+
+- An exercise that completed every prescribed set and rep may optionally be marked **Easy**, on the exercise-transition screen (or, for the final exercise, on the workout completion review) and reviewable/toggleable for every eligible exercise on workout completion.
+- Easy is available only when the exercise is fully successful; a partial or unsuccessful exercise cannot be marked Easy.
+- Easy doubles the suggested increment rather than a separate fixed amount: `current working weight + (configured increment × 2)`, versus `current working weight + configured increment` for a normal success.
+- The suggestion (doubled or not) is still just a suggestion — the user's manual next-weight override always takes precedence and is never overwritten by toggling Easy after the fact; toggling Easy only updates a weight field the user hasn't already edited by hand.
+- Undo clears Easy the moment the exercise is no longer complete or no longer fully successful — Easy never persists past the eligibility that produced it.
+- Stored as its own structured field on the exercise result, separate from any future free-text notes system. Existing history records saved before this field existed remain fully readable; their absent Easy value is treated as not marked.
+
 ## 11. Workout completion
 
 Before final save, show:
 
-- Exercises, weights, and reps per set.
+- Exercises, weights, and reps per set (the same set-progression row used elsewhere).
 - Suggested next weights with editable overrides.
+- The Easy state for every eligible exercise, reviewable and toggleable here even if it wasn't set on the transition screen.
 - Duration and total volume.
 
 On confirmation:
@@ -236,8 +249,8 @@ History lists completed and saved-incomplete workouts newest first. Each row sho
 - Start/completion date and time.
 - Workout A/B.
 - Duration.
-- Every exercise, target weight, bar weight, per-side load, and reps per set.
-- Success/failure and volume.
+- Every exercise, target weight, bar weight, per-side load, and reps per set — using the same set-progression row as the active workout and workout completion, not a separate implementation.
+- Success/failure, Easy state (if marked), and volume.
 
 Simple V1 progress may show:
 
@@ -304,7 +317,11 @@ Examples include progress since starting, last-session comparison, sets/reps tod
 
 Rules:
 
-- Do not repeat a card in the same workout.
+- Rest cards and the one-time workout-completion humorous headline (§11) are one content system for repetition purposes, not two: a phrase shown as a rest card cannot also appear as that same workout's headline, and vice versa.
+- Never repeat the same content item, or a variation sharing its "family" (e.g. several takes on the same joke), within one workout.
+- Never repeat a content item or family used in any of the last 3 *completed* workouts. Saved-incomplete and discarded workouts don't count toward this exclusion.
+- If nothing eligible remains after these rules, show no card and no headline — never fall back to a repeat.
+- A generated, data-driven message (e.g. "up from X to Y since you started") may reuse its template when the underlying personal data has meaningfully changed since it last appeared — it's keyed by the actual values shown, not just the template, so a genuinely different number is treated as new content rather than a repeat.
 - Prefer relevant technique early, upcoming setup near an exercise end, and recovery/nutrition near workout end.
 - Timer remains visually dominant.
 - Cards do not autoplay or scroll.
@@ -313,16 +330,16 @@ Rules:
 - Health and nutrition content stays general and avoids diagnosis or rigid promises.
 - Avoid static-stretching recommendations between heavy working sets.
 
-Starter humor may include: “Sexy is as sexy lifts,” “Gravity is reviewing the incident,” and “The barbell has filed another complaint.”
+Starter humor may include: “Sexy is as sexy lifts,” “Gravity is reviewing the incident,” “The barbell has filed another complaint,” and “A spoonful of protein helps the waistline go down.” The "barbell/gravity has a complaint" idea is one family among several, not the default — the library is broad enough that a normal 5×5 workout shouldn't exhaust it.
 
 ## 17. Data model (conceptual)
 
 - `AppSettings`: units, program start date, motivation, humor level, card toggles, setup status.
 - `ExerciseConfig`: stable id, name, original weight, current weight, increment, bar weight, target sets/reps, rest seconds, display order. One record exists per unique exercise; Squat has exactly one record referenced by both Workout A and Workout B, not a separate record per workout.
 - `WorkoutSession`: stable id, type, status, timestamps, active exercise index, UI state, completion transaction id.
-- `ExerciseResult`: exercise snapshot, target/bar/per-side weights, set results, success.
+- `ExerciseResult`: exercise snapshot, target/bar/per-side weights, set results, success, Easy flag (optional; absent on records predating it, treated as not marked).
 - `SetResult`: order, reps, completed timestamp.
-- `StoredWorkout`: completed or intentionally saved-incomplete snapshot plus optional edit timestamp.
+- `StoredWorkout`: completed or intentionally saved-incomplete snapshot plus optional edit timestamp and content-history (rest cards/headline shown, for the 3-workout repetition rule; optional, absent on older records).
 
 Use schema versioning and migrations from the first database release.
 

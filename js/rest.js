@@ -4,6 +4,7 @@ import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.j
 import { playChime } from './audio.js';
 import { pickNextCard } from './restCards.js';
 import { acquireWakeLock } from './wakeLock.js';
+import { setProgressionMarkup } from './setProgression.js';
 
 function formatCountdown(msRemaining) {
   const totalSeconds = Math.round(msRemaining / 1000);
@@ -31,12 +32,19 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
   const setsRecorded = exercise.setResults.length;
   const nextSetNumber = setsRecorded + 1;
   const initiallyExpired = restEndsAtMs - Date.now() <= 0;
+  // Rest screen only ever renders when another set remains (the dispatcher
+  // never starts a rest countdown after an exercise's final set), so the
+  // only condition needed here is whether the just-recorded set was short.
+  const lastSet = exercise.setResults[exercise.setResults.length - 1];
+  const wasShort = lastSet != null && lastSet.reps < exercise.targetReps;
 
   root.innerHTML = `
     <main class="rest-screen">
       <p class="muted">Exercise ${index + 1} of ${session.exerciseResults.length}</p>
       <h1>${exercise.name}</h1>
       ${weightDisplayMarkup(exercise.targetWeight, exercise.barWeight, settings.units)}
+      ${setProgressionMarkup(exercise)}
+      ${wasShort ? `<p class="rest-recommendation" id="rest-recommendation">That set fell short. Consider adding 30 seconds to this rest</p>` : ''}
 
       <div class="stacked-actions" id="add-rest-block">
         <button id="add-rest-btn" class="add-rest-action">+30 sec</button>
@@ -54,7 +62,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
         <button type="button" id="next-tip-btn" class="tertiary-action">Next Tip</button>
       </div>
 
-      <p class="set-status" id="set-status" hidden>Begin Set ${nextSetNumber} of ${exercise.targetSets} now.</p>
+      <p class="set-status" id="set-status" hidden>Begin set ${nextSetNumber} of ${exercise.targetSets} now</p>
       <p class="error" id="rest-error" hidden></p>
 
       <div id="set-recording-block" hidden>
@@ -83,6 +91,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
   const skipRestBlock = document.getElementById('skip-rest-block');
   const setStatusEl = document.getElementById('set-status');
   const cardEl = document.getElementById('rest-card');
+  const recommendationEl = document.getElementById('rest-recommendation');
 
   // Don't chime for a rest that already expired while backgrounded/reloaded —
   // spec calls for the chime only "while visible." A live crossover from
@@ -93,11 +102,12 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
   function enterOvertimeState() {
     isExpired = true;
     timerEl.classList.add('rest-timer--expired');
-    overtimeTextEl.textContent = 'Rest finished.';
+    overtimeTextEl.textContent = 'Rest finished';
     overtimeTextEl.hidden = false;
     addRestBlock.hidden = true;
     skipRestBlock.hidden = true;
     cardEl.hidden = true;
+    if (recommendationEl) recommendationEl.hidden = true;
     setStatusEl.hidden = false;
     setRecordingBlock.hidden = false;
     // Set Done/Partial succeeding here must stop this screen's own countdown
@@ -240,7 +250,7 @@ export function renderRestScreen(root, session, settings, { onSessionEnded, rere
     document.getElementById('rest-card-text').textContent = card.text;
     cardEl.hidden = false;
     try {
-      const updated = await markCardShown(session, card.key);
+      const updated = await markCardShown(session, { key: card.key, family: card.family });
       session.shownCardKeys = updated.shownCardKeys;
     } catch (err) {
       // Best-effort: if this fails to persist, worst case is an occasional

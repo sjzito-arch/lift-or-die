@@ -79,6 +79,10 @@ label {
   gap: 8px;
 }
 
+.easy-toggle {
+  margin: 10px 0;
+}
+
 fieldset {
   border: 1px solid var(--color-surface-raised);
   border-radius: 8px;
@@ -521,11 +525,15 @@ button {
   pointer-events: auto;
 }
 
-/* Set-result chips (Exercise Complete / Workout Complete): a hit is a plain
-   checkmark (the rep count is already implied by the target); a miss shows
-   the actual rep count in a neutral outline — no red, this app never shames
-   a missed set. */
-.set-chips {
+/* Set-progression row (Requirement 1): one reusable visual, used identically
+   on active exercise, rest, exercise-transition, workout completion, and
+   history detail. A hit is a plain checkmark (the rep count is already
+   implied by the target); a miss shows the actual rep count in a neutral
+   outline — no red, this app never shames a missed set. Current/future
+   differ in fill weight, not just tone, so color is never the only signal;
+   set numbers are deliberately omitted from unfinished boxes (aria-labels
+   carry that instead). */
+.set-progression {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -554,6 +562,34 @@ button {
   background: transparent;
   border: 2px solid var(--color-text-muted);
   color: var(--color-text);
+}
+
+.set-chip--current {
+  background: var(--color-rest);
+  border: 2px solid var(--color-rest);
+}
+
+.set-chip--future {
+  background: transparent;
+  border: 2px solid var(--color-rest);
+  opacity: 0.45;
+}
+
+/* Bigger on the recording screens (distance-readability), but deliberately
+   smaller than per-side/timer/Set Done so the row never competes with them. */
+.active-exercise .set-chip,
+.rest-screen .set-chip {
+  width: 38px;
+  height: 38px;
+  font-size: 1.1rem;
+}
+
+.rest-recommendation {
+  color: var(--color-rest);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: center;
+  margin: 8px 0;
 }
 
 /* Rep stepper (Partial Set entry): avoids the number keyboard for the common

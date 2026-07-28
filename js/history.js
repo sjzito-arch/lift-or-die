@@ -1,8 +1,9 @@
 import { getAllRecords, getRecord, putRecord, deleteRecord } from './db.js';
 import { STORES, EXERCISE_ORDER } from './schema.js';
-import { computeWorkoutVolume, formatSetSummary } from './statsCalculations.js';
+import { computeWorkoutVolume } from './statsCalculations.js';
 import { formatPerSideText } from './loadCalculations.js';
 import { computeSuccess } from './session.js';
+import { setProgressionMarkup } from './setProgression.js';
 
 function formatDate(iso) {
   const d = new Date(iso);
@@ -170,8 +171,8 @@ async function renderHistoryDetail(root, workoutId, settings, { onBack }) {
             <span class="review-sets">${ex.targetSets}×${ex.targetReps}</span>
           </div>
           <div class="review-stats">${ex.targetWeight} ${settings.units} · bar ${ex.barWeight} ${settings.units} · ${formatPerSideText(ex.targetWeight, ex.barWeight, settings.units)}</div>
-          <p class="muted">${formatSetSummary(ex) || 'No sets recorded'}</p>
-          <p class="muted">${ex.success == null ? 'Not recorded' : ex.success ? 'Successful' : 'Not every set hit target'}</p>
+          ${setProgressionMarkup(ex)}
+          <p class="muted">${ex.success == null ? 'Not recorded' : ex.success ? 'Successful' : 'Not every set hit target'}${ex.easy ? ' · Marked Easy' : ''}</p>
         </div>`
         )
         .join('')}
@@ -342,6 +343,12 @@ function renderHistoryEdit(root, workout, settings, { onBack }) {
 
       const updatedExercise = { ...ex, targetWeight, barWeight, setResults };
       updatedExercise.success = computeSuccess(updatedExercise);
+      // Easy is only ever valid alongside a full success — an edit that
+      // flips success away from true must clear a stale Easy mark, same
+      // invariant Undo already enforces during an active workout.
+      if (updatedExercise.success !== true) {
+        updatedExercise.easy = false;
+      }
       if (updatedExercise.success !== ex.success) {
         successChanges.push({ exIndex, name: ex.name, oldSuccess: ex.success, newSuccess: updatedExercise.success });
       }

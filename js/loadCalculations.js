@@ -10,7 +10,7 @@ export function computePerSideWeight(targetWeight, barWeight) {
 export function formatPerSideText(targetWeight, barWeight, units) {
   const { perSide, isBelowBar } = computePerSideWeight(targetWeight, barWeight);
   if (isBelowBar) {
-    return `Bar only — target (${targetWeight} ${units}) is below the bar (${barWeight} ${units}).`;
+    return `Bar only — target (${targetWeight} ${units}) is below the bar (${barWeight} ${units})`;
   }
   return `${perSide} ${units} per side`;
 }
@@ -22,7 +22,7 @@ export function formatPerSideText(targetWeight, barWeight, units) {
 export function formatLoadBreakdownText(targetWeight, barWeight, units) {
   const { perSide, isBelowBar } = computePerSideWeight(targetWeight, barWeight);
   if (isBelowBar) {
-    return `Bar only — target (${targetWeight} ${units}) is below the bar (${barWeight} ${units}).`;
+    return `Bar only — target (${targetWeight} ${units}) is below the bar (${barWeight} ${units})`;
   }
   return `${barWeight} (bar) + ${perSide} (side) × 2 = ${targetWeight} ${units} total`;
 }
@@ -50,7 +50,7 @@ export function computeLoadDifferenceText(currentTargetWeight, currentBarWeight,
   const current = computePerSideWeight(currentTargetWeight, currentBarWeight).perSide;
   const next = computePerSideWeight(nextTargetWeight, nextBarWeight).perSide;
   const delta = next - current;
-  if (delta === 0) return 'No change per side.';
+  if (delta === 0) return 'No change per side';
   const amount = Math.abs(delta);
-  return delta > 0 ? `Add ${amount} ${units} per side.` : `Remove ${amount} ${units} per side.`;
+  return delta > 0 ? `Add ${amount} ${units} per side` : `Remove ${amount} ${units} per side`;
 }

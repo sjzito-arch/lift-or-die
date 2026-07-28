@@ -20,6 +20,7 @@ function snapshotExercise(exercise, settings) {
     success: null,
     justUndone: false,
     restEndsAt: null,
+    easy: false,
   };
 }
 
@@ -37,9 +38,13 @@ function isValidSnapshot(ex) {
 // Successful (every set met its rep target) suggests working weight +
 // increment; unsuccessful suggests the same weight (spec §10). `success` is
 // `null` only while sets remain unrecorded, which can't happen once a
-// workout reaches completion review.
+// workout reaches completion review. Marking an exercise Easy doubles the
+// increment rather than using a separate hard-coded jump — a 5 lb increment
+// becomes +10 lb, not some other fixed amount.
 export function computeSuggestedWeight(exercise) {
-  return exercise.success ? exercise.targetWeight + exercise.increment : exercise.targetWeight;
+  if (!exercise.success) return exercise.targetWeight;
+  const multiplier = exercise.easy ? 2 : 1;
+  return exercise.targetWeight + exercise.increment * multiplier;
 }
 
 // Snapshots the chosen template's exercises at their current settings into a
@@ -171,6 +176,26 @@ export async function undoLastSet(session, exerciseIndex) {
     restEndsAt: null,
   };
   updatedExercise.success = computeSuccess(updatedExercise);
+  // Easy is only ever valid on a fully successful exercise — losing that
+  // eligibility (the exercise is no longer complete, or no longer every set
+  // hit target) must clear it rather than leave a stale Easy mark the user
+  // never re-confirmed against the new, incomplete state.
+  if (updatedExercise.success !== true) {
+    updatedExercise.easy = false;
+  }
+  return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
+}
+
+// Easy (spec addendum): marks a fully-successful exercise as easy, doubling
+// the suggested next-weight increment. Enforced here too, not just hidden in
+// the UI, so a stale/racing request can't mark an ineligible exercise.
+export async function setExerciseEasy(session, exerciseIndex, easy) {
+  const fresh = await getFreshSession(session.id);
+  const exercise = fresh.exerciseResults[exerciseIndex];
+  if (exercise.success !== true) {
+    throw new Error('This exercise is not eligible for Easy.');
+  }
+  const updatedExercise = { ...exercise, easy: !!easy };
   return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
 }
 
@@ -189,18 +214,33 @@ export async function skipRest(session, exerciseIndex) {
   return persistExerciseChange(fresh, exerciseIndex, updatedExercise);
 }
 
-// Records that a rest card was shown, so it isn't repeated later in the same
-// workout (spec §12/§16). `shownCardKeys` lives on the session, not a single
-// exercise, since a card shouldn't repeat across the whole workout.
-export async function markCardShown(session, cardKey) {
+// Records that a piece of content (a rest card, or the eventual completion
+// headline) was shown, so neither it nor anything sharing its "family" (a
+// variation of the same joke/idea) repeats later in the same workout (spec
+// §12/§16). `entry` is `{ key, family }` — both persisted, not just the key,
+// so family-based exclusion can be enforced later (within this workout, and
+// via `contentHistory` across the next 3 completed workouts) without having
+// to re-derive a family from a bare key against a content library that may
+// have changed since. `shownCardKeys` lives on the session, not a single
+// exercise, since content shouldn't repeat across the whole workout —
+// rest cards and the completion headline share this exact same list.
+export async function markCardShown(session, entry) {
   const fresh = await getFreshSession(session.id);
   const updatedSession = {
     ...fresh,
-    shownCardKeys: [...(fresh.shownCardKeys ?? []), cardKey],
+    shownCardKeys: [...(fresh.shownCardKeys ?? []), entry],
     updatedAt: new Date().toISOString(),
   };
   await putRecord(STORES.workoutSessions.name, updatedSession);
   return updatedSession;
+}
+
+// A session created before this content-history rework may still have a
+// handful of legacy bare-string entries in `shownCardKeys` if it was already
+// in progress across the update — normalize those to their own family so
+// exclusion logic never has to special-case the shape.
+function normalizeContentEntry(entry) {
+  return typeof entry === 'string' ? { key: entry, family: entry } : entry;
 }
 
 export async function advanceToNextExercise(session) {
@@ -231,6 +271,7 @@ export async function saveIncompleteSession(session) {
     endedAt,
     durationSeconds,
     exerciseResults: fresh.exerciseResults,
+    contentHistory: (fresh.shownCardKeys ?? []).map(normalizeContentEntry),
     updatedAt: null,
   };
   await putThenDeleteAtomic(
@@ -281,6 +322,11 @@ export async function completeWorkout(session, overridesByExerciseId) {
     endedAt,
     durationSeconds,
     exerciseResults: fresh.exerciseResults,
+    // Which rest cards / the completion headline were shown this workout —
+    // feeds the "don't repeat within the next 3 completed workouts" rule
+    // (spec addendum). Absent entirely on records saved before this field
+    // existed; readers treat that as an empty history, excluding nothing.
+    contentHistory: (fresh.shownCardKeys ?? []).map(normalizeContentEntry),
     updatedAt: null,
   };
 

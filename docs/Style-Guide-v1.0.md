@@ -94,6 +94,13 @@ Avoid:
 - Jokes during errors or data-loss risk.
 - Different personalities between functional copy and cards.
 
+### Short-copy punctuation
+
+- Short labels, statuses, loading instructions, and command-style directions do not end with a period: "Add 10 lb per side," "No change per side," "Begin set 3 of 5 now," "Rest finished," "All sets hit target," "Same weight next time."
+- Full explanatory sentences, confirmations, warnings, errors, humor, and paragraphs keep normal punctuation, unchanged: "Set 3 saved. Rest." and "Fair enough. We'll be here." (above) both stay exactly as written.
+- Where a status and its implication are shown as one line (e.g. a result plus what happens next), join them with an em dash rather than a period, and drop the trailing period: "All sets hit target — adding 5 lb next time," not "All sets hit target. Adding 5 lb next time."
+- Don't strip punctuation mechanically from something that's genuinely a sentence just because it's short — a one-time confirmation like "Nice work." or a workout-completion status line stays a sentence.
+
 ## Daily ritual
 
 Brand question: **Lift or Die?**, presented directly on Home as two buttons: **Lift? (Start Workout)** and **Die? (maybe later)**. “Die” is framing, not a shaming action — tapping it carries no real penalty, so making it a real, equally-weighted choice (rather than avoiding the literal word) still fits the app’s dry, forgiving voice.

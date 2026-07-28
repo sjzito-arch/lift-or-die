@@ -2,6 +2,7 @@ import { undoLastSet, endWorkoutControlMarkup, attachEndWorkoutHandlers } from '
 import { weightDisplayMarkup } from './loadCalculations.js';
 import { setRecordingMarkup, attachSetRecordingHandlers } from './setRecording.js';
 import { acquireWakeLock } from './wakeLock.js';
+import { setProgressionMarkup } from './setProgression.js';
 
 // The "ready for a set" screen (spec §7), scoped to Set Done, partial-set
 // entry, and undo. The dispatcher in workoutScreen.js only calls this when
@@ -21,7 +22,8 @@ export function renderActiveExercise(root, session, settings, { onSessionEnded, 
       <p class="muted">Exercise ${index + 1} of ${session.exerciseResults.length}</p>
       <h1>${exercise.name}</h1>
       ${weightDisplayMarkup(exercise.targetWeight, exercise.barWeight, settings.units)}
-      <p class="set-status">Begin Set ${nextSetNumber} of ${exercise.targetSets} now.</p>
+      ${setProgressionMarkup(exercise)}
+      <p class="set-status">Begin set ${nextSetNumber} of ${exercise.targetSets} now</p>
       <p class="muted">Target: ${exercise.targetReps} reps</p>
 
       ${setRecordingMarkup(exercise)}
